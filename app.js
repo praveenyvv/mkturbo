@@ -447,6 +447,63 @@
       localStorage.setItem(STORAGE.NEXT_INV_NO, nextNo);
     }
     pushSyncToCloud(state.editingLedgerId ? 'bill_update' : (isEstimate ? 'estimate_save' : 'bill_save'));
+    return existingIndex >= 0 ? ledger[existingIndex] : ledger[0];
+  }
+
+  let lastSavedRecord = null;
+
+  function openSaveSuccessModal(entry, wasEditing) {
+    if (!entry) return;
+    const modal = $('saveSuccessModal');
+    if (!modal) return;
+
+    const isEst = Boolean(entry.isEstimation || entry.billType === 'estimation');
+    const badge = $('saveModalBadgeIcon');
+    const title = $('saveModalTitle');
+    const sub = $('saveModalSubtitle');
+    const cust = $('saveModalCustomerName');
+    const doc = $('saveModalDocType');
+    const date = $('saveModalDate');
+    const amount = $('saveModalAmount');
+    const nextText = $('saveModalNextText');
+
+    if (badge) {
+      badge.textContent = isEst ? '📋' : '✓';
+      badge.className = 'save-badge-icon ' + (isEst ? 'estimate' : 'cash');
+    }
+
+    if (title) {
+      if (isEst) {
+        title.textContent = wasEditing ? 'Estimation Quote Updated!' : 'Estimation Quote Saved!';
+      } else {
+        title.textContent = wasEditing ? `Cash Bill #${entry.invoiceNo} Updated!` : `Cash Bill #${entry.invoiceNo} Saved!`;
+      }
+    }
+
+    if (sub) {
+      sub.textContent = isEst
+        ? 'Recorded in Personal Finance Book (Money Blocked until converted)'
+        : 'Recorded in Personal Finance Book & Cloud Synced';
+    }
+
+    if (cust) cust.textContent = entry.customerName || 'Cash / Counter';
+    if (doc) doc.textContent = isEst ? 'Estimation Quote' : `Cash Bill #${entry.invoiceNo}`;
+    if (date) date.textContent = toDDMMYYYY(entry.date);
+    if (amount) amount.textContent = formatINR(entry.billedAmount);
+
+    if (nextText) {
+      const nextNo = state.invoiceNo;
+      nextText.innerHTML = isEst
+        ? 'Form is cleared and ready for next job.'
+        : `Form is cleared &amp; ready for next job: <strong>Bill #${nextNo}</strong>`;
+    }
+
+    modal.classList.add('open');
+  }
+
+  function closeSaveSuccessModal() {
+    const modal = $('saveSuccessModal');
+    if (modal) modal.classList.remove('open');
   }
 
   /* ── User Action: Save Bill Button Click ───── */
@@ -467,14 +524,21 @@
 
     const wasEditing = Boolean(state.editingLedgerId);
     const isEstimate = state.billType === 'estimation';
-    syncInvoiceToFinanceBook();
-    const nextNo = computeNextInvoiceNo(getLedger());
-    setSavedState(true, isEstimate ? '' : nextNo);
+
+    // 1. Save entry to finance ledger & sync with cloud
+    const saved = syncInvoiceToFinanceBook();
+    lastSavedRecord = saved;
+
+    // 2. Clear form so it is fresh, blank and incremented to next bill number!
+    newInvoice(false);
+
+    // 3. Open Success Modal with Download, Share, Print, and Cross button!
+    openSaveSuccessModal(saved, wasEditing);
 
     if (isEstimate) {
       toast(wasEditing ? '✅ Estimation Quote updated in Notebook (Blocked)' : '✅ Estimation saved in Notebook! (Money Blocked)');
     } else {
-      toast(wasEditing ? `✅ Cash Bill #${state.invoiceNo} updated in Notebook!` : `✅ Cash Bill #${state.invoiceNo} saved! Next: #${nextNo}`);
+      toast(wasEditing ? `✅ Cash Bill #${saved.invoiceNo} updated!` : `✅ Cash Bill #${saved.invoiceNo} saved! Form ready for #${state.invoiceNo}`);
     }
   }
 
@@ -800,6 +864,7 @@
       if (typeof html2pdf !== 'undefined') {
         await html2pdf().set(opt).from(sheet).save();
         toast(`Downloaded ${filename}!`);
+        if (!state.editingLedgerId) newInvoice(false);
       } else {
         document.title = filename.replace('.pdf', '');
         window.print();
@@ -1377,6 +1442,16 @@
     }
   }
 
+  /* ── Direct PDF Print from Ledger / Modal ── */
+  function printBillFromLedger(entry) {
+    if (!entry) return;
+    loadBillForEditing(entry);
+    const filename = pdfFilename(entry.invoiceNo);
+    document.title = filename.replace('.pdf', '');
+    window.print();
+    newInvoice(false);
+  }
+
   /* ── Direct PDF Share from Ledger ─────────── */
   async function shareBillFromLedger(entry) {
     loadBillForEditing(entry);
@@ -1408,6 +1483,7 @@
               : `M.K. Turbo Cash Bill #${entry.invoiceNo} for ${entry.customerName || 'Customer'}`
           });
           toast('Shared successfully!');
+          if (!state.editingLedgerId) newInvoice(false);
         } else {
           await html2pdf().set(opt).from(sheet).save();
           toast(`Downloaded ${filename} for sharing!`);
@@ -2132,12 +2208,39 @@
     });
 
     $('addProductBtn').addEventListener('click', () => addRow(true));
-    $('downloadPdfBtn').addEventListener('click', downloadPdf);
-    $('sharePdfBtn').addEventListener('click', sharePdf);
-    $('printBtn').addEventListener('click', printInvoice);
-    $('startNextBillBtn').addEventListener('click', startNextBill);
+    if ($('downloadPdfBtn')) $('downloadPdfBtn').addEventListener('click', downloadPdf);
+    if ($('sharePdfBtn')) $('sharePdfBtn').addEventListener('click', sharePdf);
+    if ($('printBtn')) $('printBtn').addEventListener('click', printInvoice);
+    if ($('startNextBillBtn')) $('startNextBillBtn').addEventListener('click', startNextBill);
     if ($('loadSampleBtn')) $('loadSampleBtn').addEventListener('click', loadSample);
     if ($('resetBtn')) $('resetBtn').addEventListener('click', newInvoice);
+
+    // Bill Saved Success Popup Modal
+    if ($('closeSaveSuccessModal')) $('closeSaveSuccessModal').addEventListener('click', closeSaveSuccessModal);
+    if ($('saveModalDoneBtn')) $('saveModalDoneBtn').addEventListener('click', closeSaveSuccessModal);
+    if ($('saveSuccessModal')) {
+      $('saveSuccessModal').addEventListener('click', e => {
+        if (e.target === $('saveSuccessModal')) closeSaveSuccessModal();
+      });
+    }
+
+    if ($('saveModalDownloadBtn')) {
+      $('saveModalDownloadBtn').addEventListener('click', () => {
+        if (lastSavedRecord) downloadBillFromLedger(lastSavedRecord);
+      });
+    }
+
+    if ($('saveModalShareBtn')) {
+      $('saveModalShareBtn').addEventListener('click', () => {
+        if (lastSavedRecord) shareBillFromLedger(lastSavedRecord);
+      });
+    }
+
+    if ($('saveModalPrintBtn')) {
+      $('saveModalPrintBtn').addEventListener('click', () => {
+        if (lastSavedRecord) printBillFromLedger(lastSavedRecord);
+      });
+    }
 
     // Slide-out Drawer Sidebar
     const drawer = $('appSidebarDrawer');
