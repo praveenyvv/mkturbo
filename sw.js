@@ -1,18 +1,22 @@
 /**
- * M.K. TURBO Progressive Web App - Service Worker v3.3
+ * M.K. TURBO Progressive Web App - Service Worker v3.4
  * Instant cache update & cloud sync bypass
  */
 
-const CACHE_NAME = 'mkturbo-cache-v3.3';
+const CACHE_NAME = 'mkturbo-cache-v3.4';
 const STATIC_ASSETS = [
   './',
   './index.html',
-  './style.css?v=3.0',
-  './app.js?v=3.0',
+  './style.css?v=3.4',
+  './app.js?v=3.4',
   './manifest.json',
   './html2pdf.bundle.min.js',
   './icon-192.png',
-  './icon-512.png'
+  './icon-512.png',
+  './apple-touch-icon.png',
+  './favicon.png',
+  './logo.png',
+  './signature.png'
 ];
 
 self.addEventListener('install', event => {

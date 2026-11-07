@@ -42,7 +42,7 @@ body {
 
 .brand { display: flex; align-items: center; gap: 10px; }
 
-.brand-logo { height: 30px; width: auto; object-fit: contain; }
+.brand-logo { height: 38px; width: auto; object-fit: contain; }
 
 .brand-title { font-size: 1.0rem; font-weight: 800; color: var(--blue); letter-spacing: 0.5px; line-height: 1.1; }
 
@@ -329,16 +329,16 @@ body {
 .pdf-wrapper {
   position: absolute;
   top: -99999px;
-  left: -99999px;
-  width: 200mm;
+  left: 0;
+  width: 210mm;
   box-sizing: border-box;
 }
 
 .inv-sheet {
-  width: 200mm;
-  max-width: 200mm;
+  width: 210mm;
+  max-width: 210mm;
   background: #fff;
-  padding: 4mm;
+  padding: 8mm 10mm;
   font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   color: #0f172a;
   box-sizing: border-box;
@@ -610,7 +610,7 @@ body {
   padding: 4px 0;
 }
 
-.inv-sig-img { max-height: 52px; max-width: 160px; object-fit: contain; }
+.inv-sig-img { height: 44px; max-height: 48px; max-width: 140px; width: auto; object-fit: contain; }
 
 .inv-auth-label {
   font-size: 8.5pt; font-weight: 700; color: #1e293b;
@@ -650,7 +650,7 @@ body {
 
   .inv-no-stamp { color: #c02626 !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
   .inv-company-name { color: #004b93 !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-  .inv-logo, .inv-sig-img { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+  .inv-logo, .inv-sig-img { height: 44px; max-height: 48px; max-width: 140px; width: auto; object-fit: contain; }
 }
 
 
