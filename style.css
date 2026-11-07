@@ -2412,9 +2412,63 @@ body {
 
     flex-direction: column;
 
-    gap: 10px;
+    gap: 8px;
 
-    padding: 10px 14px;
+    padding: 8px 12px;
+
+  }
+
+  .app-bar-top {
+
+    width: 100%;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: space-between;
+
+  }
+
+  .brand {
+
+    gap: 8px;
+
+  }
+
+  .brand-logo {
+
+    height: 34px;
+
+  }
+
+  .brand-title {
+
+    font-size: 1.0rem;
+
+    letter-spacing: 1.5px;
+
+  }
+
+  .brand-subtitle {
+
+    font-size: 0.68rem;
+
+  }
+
+  .header-right-wrap {
+
+    display: flex;
+
+    align-items: center;
+
+  }
+
+  .btn-menu-drawer {
+
+    width: 38px;
+
+    height: 38px;
 
   }
 
@@ -5476,4 +5530,29 @@ body {
 .ledger-phone-badge:hover {
   background: #e0f2fe;
   border-color: #bae6fd;
+}
+
+
+.app-bar-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+@media (min-width: 769px) {
+  .app-bar-top {
+    display: contents;
+  }
+  .brand {
+    order: 1;
+  }
+  .app-switcher-tabs {
+    order: 2;
+  }
+  .header-right-wrap {
+    order: 3;
+    display: flex;
+    align-items: center;
+  }
 }
