@@ -1720,3 +1720,109 @@ body {
   align-items: center;
   gap: 8px;
 }
+
+/* Apple-Style Minimal Turbocharger Splash Screen */
+.app-splash-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 999999;
+  background: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.5s;
+  pointer-events: all;
+  user-select: none;
+  cursor: pointer;
+}
+
+.app-splash-screen.splash-hidden {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.splash-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  animation: splashFadeIn 0.7s ease-out;
+}
+
+@keyframes splashFadeIn {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.turbo-anim-wrap {
+  width: 110px;
+  height: 95px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 16px;
+}
+
+.turbo-svg {
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(0 4px 10px rgba(0, 75, 147, 0.12));
+}
+
+.turbo-wheel {
+  animation: turboSpool 3.6s cubic-bezier(0.4, 0.0, 0.2, 1) forwards;
+}
+
+@keyframes turboSpool {
+  0% { transform: rotate(0deg); }
+  12% { transform: rotate(60deg); }
+  28% { transform: rotate(720deg); }
+  52% { transform: rotate(2160deg); }
+  76% { transform: rotate(3240deg); }
+  90% { transform: rotate(3560deg); }
+  100% { transform: rotate(3600deg); }
+}
+
+.splash-brand-title {
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: #004b93;
+  letter-spacing: 2.5px;
+  line-height: 1.1;
+  font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
+}
+
+.splash-brand-sub {
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: #64748b;
+  letter-spacing: 0.5px;
+  margin-top: 4px;
+}
+
+.splash-bar-wrap {
+  width: 110px;
+  height: 3px;
+  background: #e2e8f0;
+  border-radius: 999px;
+  margin-top: 18px;
+  overflow: hidden;
+}
+
+.splash-bar-fill {
+  width: 0%;
+  height: 100%;
+  background: #004b93;
+  border-radius: 999px;
+  animation: splashProgress 3.4s cubic-bezier(0.4, 0.0, 0.2, 1) forwards;
+}
+
+@keyframes splashProgress {
+  0% { width: 0%; }
+  30% { width: 45%; }
+  70% { width: 85%; }
+  100% { width: 100%; }
+}

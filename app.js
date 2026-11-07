@@ -18,7 +18,8 @@
     SYNC_CODE: 'mkturbo_sync_code',
     FIREBASE_URL: 'mkturbo_firebase_url',
     LAST_SYNC: 'mkturbo_last_sync_time',
-    HISTORY: 'mkturbo_version_history'
+    HISTORY: 'mkturbo_version_history',
+    DELETED_IDS: 'mkturbo_deleted_ids'
   };
 
   // State
@@ -219,6 +220,24 @@
   }
 
   /* ── Finance Ledger Data Access ───────────── */
+    function getDeletedIds() {
+    try {
+      const data = localStorage.getItem(STORAGE.DELETED_IDS);
+      return data ? JSON.parse(data) : [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function addDeletedId(id) {
+    if (!id) return;
+    const list = getDeletedIds();
+    if (!list.includes(id)) {
+      list.push(id);
+      localStorage.setItem(STORAGE.DELETED_IDS, JSON.stringify(list));
+    }
+  }
+
   function getLedger() {
     try {
       const data = localStorage.getItem(STORAGE.FINANCE_LEDGER);
@@ -1083,6 +1102,8 @@
     const targetId = state.finance.pendingDeleteId;
     if (!targetId) return;
 
+    addDeletedId(targetId);
+
     const ledger = getLedger();
     const idx = ledger.findIndex(e => e.id === targetId);
     if (idx >= 0) {
@@ -1091,6 +1112,8 @@
       renderFinanceLedger();
       pushSyncToCloud('delete_entry');
       toast(`Deleted Bill #${removed.invoiceNo}`);
+    } else {
+      pushSyncToCloud('delete_entry');
     }
     closeDeleteConfirmModal();
   }
@@ -1306,10 +1329,12 @@
     setSyncStatus('syncing');
 
     const ledger = getLedger();
+    const deletedIds = getDeletedIds();
     const payload = {
       syncCode: getSyncCode(),
       nextInvoiceNo: computeNextInvoiceNo(ledger),
       ledger: ledger,
+      deletedIds: deletedIds,
       version: Date.now(),
       updatedAt: new Date().toISOString(),
       reason: reason
@@ -1430,27 +1455,44 @@
 
   function mergeRemoteData(remote) {
     if (!remote || !Array.isArray(remote.ledger)) return;
+
+    // Merge deleted IDs from remote and local tombstones
+    const remoteDeleted = Array.isArray(remote.deletedIds) ? remote.deletedIds : [];
+    const localDeleted = getDeletedIds();
+    const allDeletedIds = Array.from(new Set([...localDeleted, ...remoteDeleted]));
+    localStorage.setItem(STORAGE.DELETED_IDS, JSON.stringify(allDeletedIds));
+
     const localLedger = getLedger();
     const remoteLedger = remote.ledger || [];
 
+    // Filter out deleted items from remote
+    const validRemote = remoteLedger.filter(item => item && item.id && !allDeletedIds.includes(item.id));
+
+    // Remote is authoritative for the ledger list
     const map = new Map();
-    // Start with local
-    localLedger.forEach(item => {
-      if (item && item.id) map.set(item.id, item);
+    validRemote.forEach(item => {
+      map.set(item.id, item);
     });
-    // Merge with remote
-    remoteLedger.forEach(item => {
-      if (item && item.id) {
-        const existingLocal = map.get(item.id);
-        // If local has notes and remote is empty, preserve local notes
-        if (existingLocal && existingLocal.notes && !item.notes) {
-          item.notes = existingLocal.notes;
+
+    // If local has genuine un-synced items (created locally in the last 15 min):
+    localLedger.forEach(localItem => {
+      if (localItem && localItem.id && !allDeletedIds.includes(localItem.id)) {
+        if (!map.has(localItem.id)) {
+          const created = new Date(localItem.createdAt || 0).getTime();
+          if (Date.now() - created < 15 * 60 * 1000) {
+            map.set(localItem.id, localItem);
+          }
+        } else {
+          // If local has newer notes typed by user, preserve notes
+          const remoteItem = map.get(localItem.id);
+          if (localItem.notes && !remoteItem.notes) {
+            remoteItem.notes = localItem.notes;
+          }
         }
-        map.set(item.id, item);
       }
     });
 
-    // If user is actively typing in a card, do NOT let remote overwrite that card's cost or notes
+    // If user is actively typing in a card, do NOT let remote overwrite that card
     if (isUserActivelyTypingInLedger()) {
       const active = document.activeElement;
       const card = active ? active.closest('.ledger-card') : null;
@@ -1789,7 +1831,25 @@
   }
 
   /* ── Bootstrap ───────────────────────────── */
+    /* ── Apple-Style Splash Screen Controller ─ */
+  function initSplashScreen() {
+    const splash = $('appSplashScreen');
+    if (!splash) return;
+
+    const dismiss = () => {
+      splash.classList.add('splash-hidden');
+      setTimeout(() => {
+        try { splash.remove(); } catch (e) {}
+      }, 600);
+    };
+
+    // Auto-dismiss after 3.6s spool-up animation
+    setTimeout(dismiss, 3600);
+    splash.addEventListener('click', dismiss);
+  }
+
   function init() {
+    initSplashScreen();
     const ledger = getLedger();
     if (ledger.some(e => String(e.invoiceNo).trim() === String(state.invoiceNo).trim())) {
       state.invoiceNo = computeNextInvoiceNo(ledger);
