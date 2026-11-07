@@ -137,7 +137,7 @@
 
     if (isSaved) {
       if (saveBtn) saveBtn.className = 'btn-save-bill saved';
-      if (saveBtnText) saveBtnText.textContent = isEdit ? '✅ Changes Updated in Notebook' : '✅ Bill Saved in Notebook';
+      if (saveBtnText) saveBtnText.textContent = isEdit ? 'Changes Updated in Notebook' : 'Bill Saved in Notebook';
       if (banner) banner.className = 'save-status-banner saved';
       const nStr = (!isEdit && nextNo) ? ` (Next: #${nextNo})` : '';
       if (bannerText) bannerText.textContent = isEdit
@@ -145,10 +145,10 @@
         : `Bill #${state.invoiceNo || '---'} saved!${nStr} Download & Share are enabled.`;
     } else {
       if (saveBtn) saveBtn.className = 'btn-save-bill unsaved';
-      if (saveBtnText) saveBtnText.textContent = isEdit ? '💾 Update Bill in Notebook' : '💾 Save Bill to Notebook';
+      if (saveBtnText) saveBtnText.textContent = isEdit ? 'Update Bill in Notebook' : 'Save Bill to Notebook';
       if (banner) banner.className = 'save-status-banner unsaved';
       if (bannerText) bannerText.textContent = isEdit
-        ? `Editing Bill #${state.invoiceNo} — Tap "Update Bill in Notebook" to save changes.`
+        ? `Editing Bill #${state.invoiceNo} - Tap "Update Bill in Notebook" to save changes.`
         : 'Please save bill to enable Download and Share';
     }
   }
@@ -305,7 +305,7 @@
     }
 
     if (existingIndex >= 0) {
-      // UPDATE EXISTING RECORD IN-PLACE — NEVER CREATE DUPLICATE
+      // UPDATE EXISTING RECORD IN-PLACE - NEVER CREATE DUPLICATE
       const existing = ledger[existingIndex];
       existing.invoiceNo = invNo;
       existing.date = state.invoiceDate;
@@ -1268,7 +1268,7 @@
     $('customerAddressInput').value = '';
     renderRows(); sync();
     setSavedState(false);
-    toast(`Ready — Cash Bill #${state.invoiceNo}`);
+    toast(`Ready - Cash Bill #${state.invoiceNo}`);
   }
 
   function startNextBill() {
@@ -1387,7 +1387,7 @@
 
           if (localStr !== remoteStr || remote.updatedAt !== lastSyncedTimestamp || localLedger.length === 0) {
             mergeRemoteData(remote);
-            if (!silent) toast('☁️ Cloud Synced — Latest records loaded!', 1800);
+            if (!silent) toast('☁️ Cloud Synced - Latest records loaded!', 1800);
           }
           setSyncStatus('synced');
         }
@@ -1813,7 +1813,7 @@
 
     // Auto-sync listeners
     window.addEventListener('online', () => {
-      toast('🌐 Online — Syncing with Cloud...');
+      toast('🌐 Online - Syncing with Cloud...');
       pushSyncToCloud('online_event');
       pullSyncFromCloud();
     startRealtimeCloudListener();
@@ -1821,7 +1821,7 @@
 
     window.addEventListener('offline', () => {
       setSyncStatus('offline');
-      toast('⚠️ Offline — Changes will be saved locally');
+      toast('⚠️ Offline - Changes will be saved locally');
     });
 
     window.addEventListener('focus', () => {
@@ -1844,7 +1844,7 @@
     };
 
     // Auto-dismiss after 3.6s spool-up animation
-    setTimeout(dismiss, 3600);
+    setTimeout(dismiss, 2400);
     splash.addEventListener('click', dismiss);
   }
 

@@ -44,9 +44,22 @@ body {
 
 .brand-logo { height: 38px; width: auto; object-fit: contain; }
 
-.brand-title { font-size: 1.0rem; font-weight: 800; color: var(--blue); letter-spacing: 0.5px; line-height: 1.1; }
+.brand-title {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #004b93;
+  letter-spacing: 2px;
+  line-height: 1.1;
+  font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
+}
 
-.brand-subtitle { font-size: 0.7rem; font-weight: 600; color: var(--muted); display: block; }
+.brand-subtitle {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #64748b;
+  letter-spacing: 0.5px;
+  display: block;
+}
 
 .bar-actions { display: flex; gap: 8px; }
 
@@ -1773,7 +1786,7 @@ body {
 }
 
 .turbo-wheel {
-  animation: turboSpool 3.6s cubic-bezier(0.4, 0.0, 0.2, 1) forwards;
+  animation: turboSpool 2.4s cubic-bezier(0.4, 0.0, 0.2, 1) forwards;
 }
 
 @keyframes turboSpool {
@@ -1817,7 +1830,7 @@ body {
   height: 100%;
   background: #004b93;
   border-radius: 999px;
-  animation: splashProgress 3.4s cubic-bezier(0.4, 0.0, 0.2, 1) forwards;
+  animation: splashProgress 2.2s cubic-bezier(0.4, 0.0, 0.2, 1) forwards;
 }
 
 @keyframes splashProgress {
