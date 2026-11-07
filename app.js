@@ -794,7 +794,6 @@
         tr.innerHTML = `
           <td class="col-sno"><span class="sno-circle">${usedRows}</span></td>
           <td class="col-name"><div class="item-name-cell">${nameHtml}</div></td>
-          <td class="col-hsn"></td>
           <td class="col-qty"></td>
           <td class="col-unit"></td>
           <td class="col-rate">${cost > 0 ? cost.toLocaleString('en-IN') : ''}</td>
@@ -808,7 +807,6 @@
       tr.innerHTML = `
         <td class="col-sno"><span class="sno-circle">1</span></td>
         <td class="col-name">&nbsp;</td>
-        <td class="col-hsn">&nbsp;</td>
         <td class="col-qty">&nbsp;</td>
         <td class="col-unit">&nbsp;</td>
         <td class="col-rate">&nbsp;</td>
@@ -1529,7 +1527,6 @@
       tr.innerHTML = `
         <td class="col-sno"><span class="sno-circle">${usedRows}</span></td>
         <td class="col-name"><div class="item-name-cell">${nameHtml}</div></td>
-        <td class="col-hsn"></td>
         <td class="col-qty"></td>
         <td class="col-unit"></td>
         <td class="col-rate">${cost > 0 ? cost.toLocaleString('en-IN') : ''}</td>
@@ -1542,7 +1539,6 @@
       tr.innerHTML = `
         <td class="col-sno"><span class="sno-circle">1</span></td>
         <td class="col-name">&nbsp;</td>
-        <td class="col-hsn">&nbsp;</td>
         <td class="col-qty">&nbsp;</td>
         <td class="col-unit">&nbsp;</td>
         <td class="col-rate">&nbsp;</td>

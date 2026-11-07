@@ -989,13 +989,9 @@ body {
 /* ── Meta Band (Invoice No/Date | Transport) ─── */
 
 .inv-meta-band {
-
   display: flex;
-
   border-bottom: 1.5px solid #004b93;
-
-  min-height: 64px;
-
+  min-height: 48px;
 }
 
 
@@ -1162,17 +1158,15 @@ body {
 
 .col-sno  { width: 6%;  text-align: center; }
 
-.col-name { width: 44%; text-align: left; }
+.col-name { width: 55%; text-align: left; }
 
-.col-hsn  { width: 11%; text-align: center; }
+.col-qty  { width: 7%;  text-align: center; }
 
-.col-qty  { width: 8%;  text-align: center; }
+.col-unit { width: 7%;  text-align: center; }
 
-.col-unit { width: 8%;  text-align: center; }
+.col-rate { width: 11%; text-align: right; }
 
-.col-rate { width: 10%; text-align: right; }
-
-.col-amt  { width: 13%; text-align: right; font-weight: 700; }
+.col-amt  { width: 14%; text-align: right; font-weight: 700; }
 
 
 
