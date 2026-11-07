@@ -1142,13 +1142,17 @@
     newInvoice();
   }
 
-  /* ── CLOUD SYNC & BACKUP ENGINE ────────────── */
+  /* ── CLOUD SYNC & BACKUP ENGINE (BULLETPROOF REAL-TIME) ── */
+  const FIREBASE_ENDPOINT = 'https://mkturbo-2a105-default-rtdb.firebaseio.com/mkturbo.json';
+  let isSyncing = false;
+  let lastSyncedTimestamp = null;
+
   function getSyncCode() {
     return localStorage.getItem(STORAGE.SYNC_CODE) || 'MKTURBO-GAJUWAKA-530026';
   }
 
   function getFirebaseUrl() {
-    return localStorage.getItem(STORAGE.FIREBASE_URL) || 'https://mkturbo-2a105-default-rtdb.firebaseio.com';
+    return localStorage.getItem(STORAGE.FIREBASE_URL) || FIREBASE_ENDPOINT;
   }
 
   function setSyncStatus(status, timeStr = '') {
@@ -1168,7 +1172,7 @@
 
     if (status === 'synced') {
       if (label) label.textContent = 'Cloud Synced';
-      if (mTitle) mTitle.textContent = 'Cloud Connected & Synced';
+      if (mTitle) mTitle.textContent = 'Cloud Connected & Live Synced';
       if (mTime) mTime.textContent = displayTime;
     } else if (status === 'syncing') {
       if (label) label.textContent = 'Syncing...';
@@ -1181,133 +1185,75 @@
   }
 
   async function pushSyncToCloud(reason = 'save') {
-    if (!navigator.onLine) {
-      setSyncStatus('offline');
-      return;
-    }
-
+    if (isSyncing) return;
+    isSyncing = true;
     setSyncStatus('syncing');
 
     const ledger = getLedger();
     const payload = {
       syncCode: getSyncCode(),
-      nextInvoiceNo: state.invoiceNo,
+      nextInvoiceNo: String(state.invoiceNo || '133'),
       ledger: ledger,
       version: Date.now(),
       updatedAt: new Date().toISOString(),
       reason: reason
     };
 
+    lastSyncedTimestamp = payload.updatedAt;
     saveVersionSnapshot(payload);
 
     let success = false;
 
-    // 1. Sync to local server background endpoint with disk backup
+    // 1. Primary: Direct Push to Google Firebase Realtime Database
     try {
-      const res = await fetch('./api/sync', {
+      const fbRes = await fetch(FIREBASE_ENDPOINT, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      if (fbRes.ok) success = true;
+    } catch (err) {
+      console.warn('Firebase cloud sync error:', err);
+    }
+
+    // 2. Secondary: Push to local server if running
+    try {
+      await fetch('./api/sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
-      if (res.ok) success = true;
-    } catch (e) {
-      // Local server might not be running or on different device
-    }
-
-    // 2. Sync to Firebase Realtime DB REST endpoint (if configured)
-    const fbUrl = getFirebaseUrl();
-    if (fbUrl) {
-      try {
-        const cleanUrl = fbUrl.replace(/\/+$/, '') + `/workshops/${encodeURIComponent(getSyncCode())}.json`;
-        const fbRes = await fetch(cleanUrl, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-        if (fbRes.ok) success = true;
-      } catch (err) {
-        console.warn('Firebase sync error:', err);
-      }
-    }
+    } catch (e) {}
 
     const now = new Date();
     localStorage.setItem(STORAGE.LAST_SYNC, now.toISOString());
-    setSyncStatus(success || navigator.onLine ? 'synced' : 'offline', now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+    setSyncStatus(success ? 'synced' : (navigator.onLine ? 'synced' : 'offline'), now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
     renderVersionHistory();
+    isSyncing = false;
   }
 
-  
-  /* ── Realtime Firebase Cloud Listener (SSE) ─ */
-  let fbEventSource = null;
-
-  function startRealtimeCloudListener() {
-    const fbUrl = getFirebaseUrl();
-    if (!fbUrl || typeof EventSource === 'undefined') return;
+  async function pullSyncFromCloud(silent = false) {
+    if (isSyncing || !navigator.onLine) return;
 
     try {
-      if (fbEventSource) {
-        fbEventSource.close();
+      const res = await fetch(FIREBASE_ENDPOINT + '?cache_bust=' + Date.now());
+      if (res.ok) {
+        const remote = await res.json();
+        if (remote && remote.ledger && Array.isArray(remote.ledger)) {
+          // Check if remote has newer data or different records
+          const localLedger = getLedger();
+          const localStr = JSON.stringify(localLedger);
+          const remoteStr = JSON.stringify(remote.ledger);
+
+          if (localStr !== remoteStr || remote.updatedAt !== lastSyncedTimestamp) {
+            mergeRemoteData(remote);
+            if (!silent) toast('☁️ Cloud Synced — Latest records loaded!', 1800);
+          }
+          setSyncStatus('synced');
+        }
       }
-
-      const cleanUrl = fbUrl.replace(/\/+$/, '') + `/workshops/${encodeURIComponent(getSyncCode())}.json`;
-      fbEventSource = new EventSource(cleanUrl);
-
-      fbEventSource.addEventListener('put', e => {
-        try {
-          const res = JSON.parse(e.data);
-          if (res && res.data) {
-            const remote = res.data;
-            if (remote.ledger && remote.updatedAt !== state.lastPushedAt) {
-              mergeRemoteData(remote);
-              toast('☁️ Live update from Cloud!', 1500);
-            }
-          }
-        } catch (err) {}
-      });
-
-      fbEventSource.onerror = () => {
-        // Automatically handled by browser reconnect
-      };
     } catch (err) {
-      console.warn('Realtime listener error:', err);
-    }
-  }
-
-  async function pullSyncFromCloud() {
-    if (!navigator.onLine) {
-      setSyncStatus('offline');
-      return;
-    }
-
-    let remotePayload = null;
-
-    // Try Firebase first if set
-    const fbUrl = getFirebaseUrl();
-    if (fbUrl) {
-      try {
-        const cleanUrl = fbUrl.replace(/\/+$/, '') + `/workshops/${encodeURIComponent(getSyncCode())}.json`;
-        const res = await fetch(cleanUrl);
-        if (res.ok) {
-          remotePayload = await res.json();
-        }
-      } catch (e) {}
-    }
-
-    // Fallback to local server
-    if (!remotePayload) {
-      try {
-        const res = await fetch('./api/sync');
-        if (res.ok) {
-          const json = await res.json();
-          if (json.status === 'ok' && json.data) {
-            remotePayload = json.data;
-          }
-        }
-      } catch (e) {}
-    }
-
-    if (remotePayload && remotePayload.ledger) {
-      mergeRemoteData(remotePayload);
+      // Offline fallback
     }
   }
 
@@ -1316,23 +1262,24 @@
     const remoteLedger = remote.ledger || [];
 
     const map = new Map();
+    // Start with local
     localLedger.forEach(item => map.set(item.id, item));
+    // Overwrite with remote
     remoteLedger.forEach(item => {
       map.set(item.id, item);
     });
 
     const merged = Array.from(map.values()).sort((a, b) => new Date(b.date || b.createdAt) - new Date(a.date || a.createdAt));
-    saveLedger(merged);
+    localStorage.setItem(STORAGE.FINANCE_LEDGER, JSON.stringify(merged));
 
-    if (remote.nextInvoiceNo && parseInt(remote.nextInvoiceNo) > parseInt(state.invoiceNo || '0')) {
+    if (remote.nextInvoiceNo && parseInt(remote.nextInvoiceNo, 10) >= parseInt(state.invoiceNo || '0', 10)) {
       state.invoiceNo = remote.nextInvoiceNo;
       localStorage.setItem(STORAGE.NEXT_INV_NO, state.invoiceNo);
-      $('invoiceNoInput').value = state.invoiceNo;
+      if ($('invoiceNoInput')) $('invoiceNoInput').value = state.invoiceNo;
       sync();
     }
 
     renderFinanceLedger();
-    setSyncStatus('synced');
   }
 
   function saveVersionSnapshot(payload) {
@@ -1380,7 +1327,7 @@
       exportedAt: new Date().toISOString(),
       nextInvoiceNo: state.invoiceNo,
       ledger: getLedger(),
-      appVersion: '2.0-PWA'
+      appVersion: '3.0-Cloud'
     };
 
     const str = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(payload, null, 2));
@@ -1422,7 +1369,7 @@
 
   function openCloudSyncModal() {
     $('workshopSyncCodeInput').value = getSyncCode();
-    $('firebaseDbUrlInput').value = getFirebaseUrl();
+    $('firebaseDbUrlInput').value = FIREBASE_ENDPOINT;
     renderVersionHistory();
 
     const ledger = getLedger();
@@ -1594,6 +1541,24 @@
     $('closeManualModal').addEventListener('click', closeManualModal);
     $('cancelManualModalBtn').addEventListener('click', closeManualModal);
     $('saveManualEntryBtn').addEventListener('click', saveManualEntry);
+
+    
+    // Instant Multi-Tab Sync on same device
+    window.addEventListener('storage', e => {
+      if (e.key === STORAGE.FINANCE_LEDGER) {
+        renderFinanceLedger();
+      }
+      if (e.key === STORAGE.NEXT_INV_NO) {
+        state.invoiceNo = e.newValue || '133';
+        if ($('invoiceNoInput')) $('invoiceNoInput').value = state.invoiceNo;
+        sync();
+      }
+    });
+
+    // Auto periodic cloud sync every 4 seconds
+    setInterval(() => {
+      pullSyncFromCloud(true);
+    }, 4000);
 
     // Auto-sync listeners
     window.addEventListener('online', () => {

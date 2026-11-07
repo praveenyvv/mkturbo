@@ -1,14 +1,14 @@
 /**
- * M.K. TURBO Progressive Web App - Service Worker
- * Enables offline capability and fast loading on mobile & desktop
+ * M.K. TURBO Progressive Web App - Service Worker v3.0
+ * Instant cache update & cloud sync bypass
  */
 
-const CACHE_NAME = 'mkturbo-cache-v1.2';
+const CACHE_NAME = 'mkturbo-cache-v3.0';
 const STATIC_ASSETS = [
   './',
   './index.html',
-  './style.css',
-  './app.js',
+  './style.css?v=3.0',
+  './app.js?v=3.0',
   './manifest.json',
   './html2pdf.bundle.min.js',
   './icon-192.png',
@@ -16,10 +16,11 @@ const STATIC_ASSETS = [
 ];
 
 self.addEventListener('install', event => {
+  self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then(cache => {
       return cache.addAll(STATIC_ASSETS);
-    }).then(() => self.skipWaiting())
+    })
   );
 });
 
@@ -34,13 +35,13 @@ self.addEventListener('activate', event => {
 });
 
 self.addEventListener('fetch', event => {
-  // Let external APIs / Cloud sync requests bypass SW cache
   const url = new URL(event.request.url);
-  if (url.pathname.startsWith('/api/') || url.origin !== self.location.origin) {
+  // Never cache Firebase, cloud endpoints, or API calls
+  if (url.hostname.includes('firebaseio.com') || url.pathname.startsWith('/api/')) {
     return;
   }
 
-  // Network first, fallback to cache for local assets
+  // Network first for all local app files so fresh code is always loaded
   event.respondWith(
     fetch(event.request)
       .then(response => {

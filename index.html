@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>M.K. Turbo - Cash Bill &amp; Finance Suite</title>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=3.0">
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#004b93">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -51,7 +51,7 @@
       </button>
     </nav>
 
-    <div class="bar-actions" id="invoiceBarActions">
+    <div class="header-right-wrap">
       <button type="button" class="btn-sync-pill" id="cloudSyncBtn" title="Cloud Sync & Backup Hub">
         <span class="sync-dot synced" id="syncStatusDot"></span>
         <span class="sync-label" id="syncStatusText">Cloud Synced</span>
@@ -60,8 +60,10 @@
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         <span>Install App</span>
       </button>
-      <button type="button" class="btn-sample" id="loadSampleBtn">Sample</button>
-      <button type="button" class="btn-new" id="resetBtn">New</button>
+      <div class="bar-actions" id="invoiceBarActions">
+        <button type="button" class="btn-sample" id="loadSampleBtn">Sample</button>
+        <button type="button" class="btn-new" id="resetBtn">New</button>
+      </div>
     </div>
   </header>
 
@@ -681,6 +683,6 @@
     </div>
   </div>
 
-  <script src="app.js"></script>
+  <script src="app.js?v=3.0"></script>
 </body>
 </html>

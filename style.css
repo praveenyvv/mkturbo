@@ -1660,3 +1660,10 @@ body {
   font-size: 0.7rem;
   font-weight: 700;
 }
+
+
+.header-right-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
