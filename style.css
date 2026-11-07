@@ -807,30 +807,72 @@ body {
   color: var(--muted);
 }
 
-/* Finance Toolbar */
+/* Finance Toolbar (Responsive & Mobile-Friendly) */
 .finance-toolbar {
   display: flex;
-  gap: 8px;
+  gap: 10px;
+  align-items: center;
   flex-wrap: wrap;
 }
 
 .search-box {
-  flex: 2;
-  min-width: 180px;
+  flex: 1 1 240px;
+  min-width: 200px;
 }
 
 .filter-dropdowns {
   display: flex;
   gap: 8px;
-  flex: 1;
+  flex: 0 0 auto;
 }
 
 .select-inp {
-  padding: 8px 10px;
-  font-size: 0.82rem;
+  padding: 9px 12px;
+  font-size: 0.84rem;
   font-weight: 600;
+  color: #1e293b;
   background-color: #fff;
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
   cursor: pointer;
+  min-width: 130px;
+  height: 42px;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.select-inp:focus {
+  border-color: var(--blue);
+  box-shadow: 0 0 0 3px rgba(0, 75, 147, 0.12);
+}
+
+@media (max-width: 640px) {
+  .finance-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .search-box {
+    width: 100%;
+    flex: none;
+    min-width: 0;
+  }
+
+  .filter-dropdowns {
+    width: 100%;
+    display: flex;
+    gap: 8px;
+    flex: none;
+  }
+
+  .filter-dropdowns .select-inp {
+    flex: 1;
+    min-width: 0;
+    width: 50%;
+    padding: 8px 8px;
+    font-size: 0.82rem;
+  }
 }
 
 /* Ledger List */
