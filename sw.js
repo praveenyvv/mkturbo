@@ -1,9 +1,9 @@
 /**
- * M.K. TURBO Progressive Web App - Service Worker v3.5
+ * M.K. TURBO Progressive Web App - Service Worker v3.6
  * Instant cache update & cloud sync bypass
  */
 
-const CACHE_NAME = 'mkturbo-cache-v3.5';
+const CACHE_NAME = 'mkturbo-cache-v3.6';
 const STATIC_ASSETS = [
   './',
   './index.html',

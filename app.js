@@ -28,6 +28,7 @@
     invoiceDate: todayStr(),
     customerName: '',
     customerAddress: '',
+    editingLedgerId: null, // Tracks if currently editing an existing ledger bill
     isSaved: false, // Save mechanism state
     items: [
       { id: uid(), turboName: '', modelNo: '', partNo: '', serialNo: '', workDone: '', cost: '' }
@@ -131,17 +132,23 @@
       }
     }
 
+    const isEdit = Boolean(state.editingLedgerId);
+
     if (isSaved) {
       if (saveBtn) saveBtn.className = 'btn-save-bill saved';
-      if (saveBtnText) saveBtnText.textContent = '✅ Bill Saved in Notebook';
+      if (saveBtnText) saveBtnText.textContent = isEdit ? '✅ Changes Updated in Notebook' : '✅ Bill Saved in Notebook';
       if (banner) banner.className = 'save-status-banner saved';
-      const nStr = nextNo ? ` (Next: #${nextNo})` : '';
-      if (bannerText) bannerText.textContent = `Bill #${state.invoiceNo || '---'} saved!${nStr} Download & Share are enabled.`;
+      const nStr = (!isEdit && nextNo) ? ` (Next: #${nextNo})` : '';
+      if (bannerText) bannerText.textContent = isEdit
+        ? `Bill #${state.invoiceNo || '---'} updated in Notebook! Download & Share are enabled.`
+        : `Bill #${state.invoiceNo || '---'} saved!${nStr} Download & Share are enabled.`;
     } else {
       if (saveBtn) saveBtn.className = 'btn-save-bill unsaved';
-      if (saveBtnText) saveBtnText.textContent = '💾 Save Bill to Notebook';
+      if (saveBtnText) saveBtnText.textContent = isEdit ? '💾 Update Bill in Notebook' : '💾 Save Bill to Notebook';
       if (banner) banner.className = 'save-status-banner unsaved';
-      if (bannerText) bannerText.textContent = 'Please save bill to enable Download and Share';
+      if (bannerText) bannerText.textContent = isEdit
+        ? `Editing Bill #${state.invoiceNo} — Tap "Update Bill in Notebook" to save changes.`
+        : 'Please save bill to enable Download and Share';
     }
   }
 
@@ -269,20 +276,31 @@
     const ledger = getLedger();
     const invNo = String(state.invoiceNo || '---').trim();
 
-    const existingIndex = ledger.findIndex(e => e.invoiceNo === invNo);
+    // Match by editingLedgerId FIRST, then by invoiceNo
+    let existingIndex = -1;
+    if (state.editingLedgerId) {
+      existingIndex = ledger.findIndex(e => e.id === state.editingLedgerId);
+    }
+    if (existingIndex < 0) {
+      existingIndex = ledger.findIndex(e => String(e.invoiceNo).trim() === invNo);
+    }
 
     if (existingIndex >= 0) {
+      // UPDATE EXISTING RECORD IN-PLACE — NEVER CREATE DUPLICATE
       const existing = ledger[existingIndex];
+      existing.invoiceNo = invNo;
       existing.date = state.invoiceDate;
       existing.customerName = state.customerName.trim() || 'Cash / Counter';
       existing.customerAddress = state.customerAddress.trim();
       existing.items = itemsSummary;
       existing.rawItems = rawItems;
       existing.billedAmount = billedTotal;
-      existing.profit = billedTotal - (parseFloat(existing.actualCost) || 0);
+      const cost = parseFloat(existing.actualCost) || 0;
+      existing.profit = billedTotal - cost;
       existing.updatedAt = new Date().toISOString();
       ledger[existingIndex] = existing;
     } else {
+      // Create new bill entry only when not editing
       const newEntry = {
         id: uid(),
         invoiceNo: invNo,
@@ -305,7 +323,7 @@
     saveLedger(ledger);
     const nextNo = computeNextInvoiceNo(ledger);
     localStorage.setItem(STORAGE.NEXT_INV_NO, nextNo);
-    pushSyncToCloud('bill_save');
+    pushSyncToCloud(state.editingLedgerId ? 'bill_update' : 'bill_save');
   }
 
   /* ── User Action: Save Bill Button Click ───── */
@@ -323,10 +341,11 @@
       return;
     }
 
+    const wasEditing = Boolean(state.editingLedgerId);
     syncInvoiceToFinanceBook();
     const nextNo = computeNextInvoiceNo(getLedger());
     setSavedState(true, nextNo);
-    toast(`✅ Cash Bill #${state.invoiceNo} saved! Next: #${nextNo}`);
+    toast(wasEditing ? `✅ Cash Bill #${state.invoiceNo} updated in Notebook!` : `✅ Cash Bill #${state.invoiceNo} saved! Next: #${nextNo}`);
   }
 
   /* ── Render Product Rows (Expanded Turbo Fields) ───── */
@@ -971,6 +990,7 @@
 
   /* ── Load Bill for Editing ────────────────── */
   function loadBillForEditing(entry) {
+    state.editingLedgerId = entry.id; // Lock editing to this exact record ID
     state.invoiceNo = entry.invoiceNo || '133';
     state.invoiceDate = entry.date || todayStr();
     state.customerName = (entry.customerName === 'Cash / Counter' || entry.customerName === 'Counter / Cash') ? '' : (entry.customerName || '');
@@ -1008,11 +1028,11 @@
     renderRows();
     sync();
 
-    // Mark saved since loaded from ledger
-    setSavedState(true);
+    // In edit mode, allow user to make adjustments and click "Update Bill in Notebook"
+    setSavedState(false);
 
     switchView('invoice');
-    toast(`Loaded Cash Bill #${state.invoiceNo} (Saved)`);
+    toast(`✏️ Editing Cash Bill #${state.invoiceNo} (updates in-place)`);
   }
 
   /* ── Direct PDF Download from Ledger ──────── */
@@ -1204,6 +1224,7 @@
   }
 
   function newInvoice(preserveNo = false) {
+    state.editingLedgerId = null; // Clear edit mode
     state.invoiceDate = todayStr();
     state.customerName = '';
     state.customerAddress = '';
@@ -1228,6 +1249,7 @@
   }
 
   function startNextBill() {
+    state.editingLedgerId = null; // Clear edit mode
     const nextNo = computeNextInvoiceNo(getLedger());
     state.invoiceNo = nextNo;
     localStorage.setItem(STORAGE.NEXT_INV_NO, state.invoiceNo);
@@ -1451,11 +1473,14 @@
     localStorage.setItem(STORAGE.NEXT_INV_NO, bestNext);
 
     // Auto-advance if the current invoiceNo in form has already been saved in the ledger
-    const isCurrentInLedger = merged.some(e => String(e.invoiceNo).trim() === String(state.invoiceNo).trim());
-    if (isCurrentInLedger) {
-      state.invoiceNo = bestNext;
-      if ($('invoiceNoInput')) $('invoiceNoInput').value = state.invoiceNo;
-      sync();
+    // BUT NEVER overwrite or advance if user is actively editing an existing bill!
+    if (!state.editingLedgerId) {
+      const isCurrentInLedger = merged.some(e => String(e.invoiceNo).trim() === String(state.invoiceNo).trim());
+      if (isCurrentInLedger) {
+        state.invoiceNo = bestNext;
+        if ($('invoiceNoInput')) $('invoiceNoInput').value = state.invoiceNo;
+        sync();
+      }
     }
 
     // Only render if user is not actively typing, otherwise defer to blur
