@@ -1148,7 +1148,7 @@
   }
 
   function getFirebaseUrl() {
-    return localStorage.getItem(STORAGE.FIREBASE_URL) || '';
+    return localStorage.getItem(STORAGE.FIREBASE_URL) || 'https://mkturbo-2a105-default-rtdb.firebaseio.com';
   }
 
   function setSyncStatus(status, timeStr = '') {
@@ -1234,6 +1234,43 @@
     localStorage.setItem(STORAGE.LAST_SYNC, now.toISOString());
     setSyncStatus(success || navigator.onLine ? 'synced' : 'offline', now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
     renderVersionHistory();
+  }
+
+  
+  /* ── Realtime Firebase Cloud Listener (SSE) ─ */
+  let fbEventSource = null;
+
+  function startRealtimeCloudListener() {
+    const fbUrl = getFirebaseUrl();
+    if (!fbUrl || typeof EventSource === 'undefined') return;
+
+    try {
+      if (fbEventSource) {
+        fbEventSource.close();
+      }
+
+      const cleanUrl = fbUrl.replace(/\/+$/, '') + `/workshops/${encodeURIComponent(getSyncCode())}.json`;
+      fbEventSource = new EventSource(cleanUrl);
+
+      fbEventSource.addEventListener('put', e => {
+        try {
+          const res = JSON.parse(e.data);
+          if (res && res.data) {
+            const remote = res.data;
+            if (remote.ledger && remote.updatedAt !== state.lastPushedAt) {
+              mergeRemoteData(remote);
+              toast('☁️ Live update from Cloud!', 1500);
+            }
+          }
+        } catch (err) {}
+      });
+
+      fbEventSource.onerror = () => {
+        // Automatically handled by browser reconnect
+      };
+    } catch (err) {
+      console.warn('Realtime listener error:', err);
+    }
   }
 
   async function pullSyncFromCloud() {
@@ -1458,6 +1495,7 @@
       toast('Syncing with Cloud...');
       pushSyncToCloud('manual_refresh');
       pullSyncFromCloud();
+    startRealtimeCloudListener();
       setTimeout(() => toast('✅ Synced with Cloud!'), 800);
     });
 
@@ -1562,6 +1600,7 @@
       toast('🌐 Online — Syncing with Cloud...');
       pushSyncToCloud('online_event');
       pullSyncFromCloud();
+    startRealtimeCloudListener();
     });
 
     window.addEventListener('offline', () => {
@@ -1571,6 +1610,7 @@
 
     window.addEventListener('focus', () => {
       pullSyncFromCloud();
+    startRealtimeCloudListener();
     });
   }
 
@@ -1587,6 +1627,7 @@
     // Check cloud sync on load
     setSyncStatus(navigator.onLine ? 'synced' : 'offline');
     pullSyncFromCloud();
+    startRealtimeCloudListener();
 
     if (state.activeView === 'finance' && !isFinanceUnlocked()) {
       switchView('invoice');
