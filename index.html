@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>M.K. Turbo - Cash Bill &amp; Finance Suite</title>
-  <link rel="stylesheet" href="style.css?v=4.7">
+  <link rel="stylesheet" href="style.css?v=4.8">
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#004b93">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -83,7 +83,7 @@
           <line x1="12" y1="6" x2="16" y2="6"/><line x1="9" y1="10" x2="16" y2="10"/><line x1="9" y1="14" x2="16" y2="14"/>
         </svg>
         <span>Finance Book</span>
-        <span class="lock-indicator" id="lockIndicator" title="Protected by PIN 1981">
+        <span class="lock-indicator" id="lockIndicator" title="Protected by Security PIN">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
         </span>
       </button>
@@ -200,6 +200,11 @@
       <div class="field-group mt-2">
         <label class="field-lbl">Address <span class="opt-tag">(Optional)</span></label>
         <textarea id="customerAddressInput" class="inp inp-textarea" rows="2" placeholder="Street, Area, City"></textarea>
+      </div>
+      <!-- Row 3.5: Customer Phone Number (Optional) -->
+      <div class="field-group mt-2">
+        <label class="field-lbl">Customer Mobile / Phone <span class="opt-tag">(Optional)</span></label>
+        <input type="tel" id="customerPhoneInput" class="inp" placeholder="e.g. 9876543210" pattern="[0-9+ -]*">
       </div>
       <!-- Products Section (Expanded Turbo Fields) -->
       <div class="section-divider mt-4">
@@ -324,7 +329,7 @@
     </div>
   </main>
   <!-- ==============================================================
-       SAFETY PIN LOCK MODAL (PIN: 1981)
+       SAFETY PIN LOCK MODAL
        ============================================================== -->
   <!-- ===== BILL SAVED SUCCESS POPUP MODAL ===== -->
   <div class="modal-overlay" id="saveSuccessModal">
@@ -453,18 +458,18 @@
             <input type="text" id="mTurboNameInput" class="inp" list="turboNameList" placeholder="e.g. Holset Turbo">
           </div>
           <div class="field-group">
-            <label class="field-lbl">Model No.</label>
-            <input type="text" id="mModelNoInput" class="inp" placeholder="e.g. HX35">
+            <label class="field-lbl">Part Number</label>
+            <input type="text" id="mTurboNoInput" class="inp" placeholder="e.g. 4031509">
           </div>
         </div>
         <div class="two-col mt-2">
           <div class="field-group">
-            <label class="field-lbl">Part Number</label>
-            <input type="text" id="mTurboNoInput" class="inp" placeholder="e.g. 4031509">
-          </div>
-          <div class="field-group">
             <label class="field-lbl">Serial Number</label>
             <input type="text" id="mSerialNoInput" class="inp" placeholder="e.g. SN-8821">
+          </div>
+          <div class="field-group">
+            <label class="field-lbl">Model No.</label>
+            <input type="text" id="mModelNoInput" class="inp" placeholder="e.g. HX35">
           </div>
         </div>
         <div class="field-group mt-2">
@@ -585,6 +590,11 @@
                 <span class="p-sep">:</span>
                 <span class="p-val" id="pCustomerAddress"></span>
               </div>
+              <div class="inv-party-row" id="pCustomerPhoneRow">
+                <span class="p-key">Phone</span>
+                <span class="p-sep">:</span>
+                <span class="p-val" id="pCustomerPhone"></span>
+              </div>
               <div class="inv-party-row">
                 <span class="p-key">State Code</span>
                 <span class="p-sep">:</span>
@@ -604,6 +614,11 @@
                 <span class="p-key">Address</span>
                 <span class="p-sep">:</span>
                 <span class="p-val" id="pConsigneeAddress"></span>
+              </div>
+              <div class="inv-party-row" id="pConsigneePhoneRow">
+                <span class="p-key">Phone</span>
+                <span class="p-sep">:</span>
+                <span class="p-val" id="pConsigneePhone"></span>
               </div>
               <div class="inv-party-row">
                 <span class="p-key">State Code</span>
@@ -740,7 +755,7 @@
           <span class="drawer-card-title">Security &amp; Privacy</span>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2.2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
         </div>
-        <p class="drawer-card-sub">Protected by Workshop Security PIN (1981)</p>
+        <p class="drawer-card-sub">Protected by Workshop Security PIN</p>
         <button type="button" class="btn-drawer-action danger mt-2" id="drawerLockFinanceBtn">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
           <span>Lock Finance Notebook</span>
@@ -845,6 +860,6 @@
       <button type="button" class="btn-dl" id="closeIosInstallBtn">Got It</button>
     </div>
   </div>
-  <script src="app.js?v=4.7"></script>
+  <script src="app.js?v=4.8"></script>
 </body>
 </html>

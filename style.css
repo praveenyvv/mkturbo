@@ -5463,3 +5463,23 @@ body {
   white-space: nowrap;
   padding-top: 3px !important;
 }
+
+
+.ledger-phone-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: #f1f5f9;
+  color: #0369a1;
+  font-size: 0.76rem;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 5px;
+  text-decoration: none;
+  border: 1px solid #e2e8f0;
+  transition: all 0.15s ease;
+}
+.ledger-phone-badge:hover {
+  background: #e0f2fe;
+  border-color: #bae6fd;
+}

@@ -30,6 +30,7 @@
     invoiceDate: todayStr(),
     customerName: '',
     customerAddress: '',
+    customerPhone: '',
     editingLedgerId: null, // Tracks if currently editing an existing ledger bill
     isSaved: false, // Save mechanism state
     items: [
@@ -227,6 +228,7 @@
   }
 
   function promptFinancePin() {
+    pushModalState('pinLockModal');
     const modal = $('pinLockModal');
     const input = $('pinInput');
     const err = $('pinErrorMsg');
@@ -264,10 +266,16 @@
   }
 
   /* ── Workspace Apps & View Navigation ───────────── */
-  function switchView(viewName) {
+  function switchView(viewName, pushHistory = true) {
     if (viewName === 'finance' && !isFinanceUnlocked()) {
       promptFinancePin();
       return;
+    }
+
+    if (pushHistory && state.activeView !== viewName) {
+      try {
+        history.pushState({ view: viewName }, '');
+      } catch (err) {}
     }
 
     state.activeView = viewName;
@@ -328,9 +336,9 @@
   /* ── Format summary string for an item ────── */
   function formatItemSummary(item) {
     const metaParts = [];
-    if (item.modelNo) metaParts.push(`Mdl ${item.modelNo}`);
     if (item.partNo) metaParts.push(`Part ${item.partNo}`);
     if (item.serialNo) metaParts.push(`S/N ${item.serialNo}`);
+    if (item.modelNo) metaParts.push(`Mdl ${item.modelNo}`);
     const metaStr = metaParts.length ? `(${metaParts.join(', ')})` : '';
 
     const cleanWork = (item.workDone || '').replace(/\r?\n/g, ' / ').trim();
@@ -423,6 +431,7 @@
       existing.date = state.invoiceDate;
       existing.customerName = state.customerName.trim() || 'Cash / Counter';
       existing.customerAddress = state.customerAddress.trim();
+      existing.customerPhone = state.customerPhone.trim();
       existing.items = itemsSummary;
       existing.rawItems = rawItems;
       existing.subtotal = subtotalSum;
@@ -442,6 +451,7 @@
         date: state.invoiceDate,
         customerName: state.customerName.trim() || 'Cash / Counter',
         customerAddress: state.customerAddress.trim(),
+        customerPhone: state.customerPhone.trim(),
         items: itemsSummary,
         rawItems: rawItems,
         subtotal: subtotalSum,
@@ -472,6 +482,7 @@
     if (!entry) return;
     const modal = $('saveSuccessModal');
     if (!modal) return;
+    pushModalState('saveSuccessModal');
 
     const isEst = Boolean(entry.isEstimation || entry.billType === 'estimation');
     const badge = $('saveModalBadgeIcon');
@@ -583,27 +594,27 @@
           </button>
         </div>
 
-        <!-- Row 1: Turbo Name + Model No -->
+        <!-- Row 1: Turbo Name + Part Number -->
         <div class="prod-inputs-grid">
-          <div class="field-item">
+          <div class="field-item flex-grow">
             <label class="input-tag">Turbo Name</label>
             <input type="text" class="inp prod-turbo-name" list="turboNameList" placeholder="e.g. Holset Turbo, Garrett" value="${esc(item.turboName)}">
           </div>
           <div class="field-item">
-            <label class="input-tag">Model No.</label>
-            <input type="text" class="inp prod-model-no" placeholder="e.g. HX35, GT2052" value="${esc(item.modelNo || '')}">
-          </div>
-        </div>
-
-        <!-- Row 2: Part Number + Serial Number -->
-        <div class="prod-inputs-grid mt-1">
-          <div class="field-item">
             <label class="input-tag">Part Number</label>
             <input type="text" class="inp prod-part-no" placeholder="e.g. 4031509" value="${esc(item.partNo || '')}">
           </div>
+        </div>
+
+        <!-- Row 2: Serial Number + Model No -->
+        <div class="prod-inputs-grid mt-1">
           <div class="field-item">
             <label class="input-tag">Serial Number</label>
             <input type="text" class="inp prod-serial-no" placeholder="e.g. SN-8821" value="${esc(item.serialNo || '')}">
+          </div>
+          <div class="field-item">
+            <label class="input-tag">Model No.</label>
+            <input type="text" class="inp prod-model-no" placeholder="e.g. HX35, GT2052" value="${esc(item.modelNo || '')}">
           </div>
         </div>
 
@@ -730,6 +741,8 @@
     $('pConsigneeName').textContent = state.customerName || '';
     $('pCustomerAddress').textContent = state.customerAddress || '';
     $('pConsigneeAddress').textContent = state.customerAddress || '';
+    if ($('pCustomerPhone')) $('pCustomerPhone').textContent = state.customerPhone || '';
+    if ($('pConsigneePhone')) $('pConsigneePhone').textContent = state.customerPhone || '';
 
     // Items table rows
     const tbody = $('pItemsBody');
@@ -757,9 +770,9 @@
         }
 
         const metaBadges = [];
-        if (item.modelNo) metaBadges.push(`<span>Mdl:</span> <strong>${esc(item.modelNo)}</strong>`);
         if (item.partNo) metaBadges.push(`<span>Part:</span> <strong>${esc(item.partNo)}</strong>`);
         if (item.serialNo) metaBadges.push(`<span>S/N:</span> <strong>${esc(item.serialNo)}</strong>`);
+        if (item.modelNo) metaBadges.push(`<span>Mdl:</span> <strong>${esc(item.modelNo)}</strong>`);
 
         if (metaBadges.length > 0) {
           nameHtml += `<div class="inv-turbo-meta">${metaBadges.join(' &nbsp;|&nbsp; ')}</div>`;
@@ -1183,6 +1196,10 @@
         ? `<span class="badge-status-blocked">🟡 Blocked</span>`
         : '';
 
+      const phoneBadge = entry.customerPhone
+        ? `<a href="tel:${esc(entry.customerPhone)}" class="ledger-phone-badge" title="Call Customer">📞 ${esc(entry.customerPhone)}</a>`
+        : '';
+
       const topConvertBanner = isEst
         ? `<div class="ledger-convert-banner">
              <button type="button" class="btn-convert-bill-top" title="1-Click: Convert to Official Cash Bill">
@@ -1210,6 +1227,7 @@
             ${invBadge}
             <span class="ledger-date">${toDDMMYYYY(entry.date)}</span>
             <span class="ledger-customer">${esc(entry.customerName)}</span>
+            ${phoneBadge}
             ${statusBadge}
           </div>
           <!-- Action Buttons: Edit, Download, Share, Delete -->
@@ -1390,6 +1408,7 @@
     state.invoiceDate = entry.date || todayStr();
     state.customerName = (entry.customerName === 'Cash / Counter' || entry.customerName === 'Counter / Cash') ? '' : (entry.customerName || '');
     state.customerAddress = entry.customerAddress || '';
+    state.customerPhone = entry.customerPhone || '';
 
     if (entry.rawItems && entry.rawItems.length > 0) {
       state.items = entry.rawItems.map(it => ({
@@ -1451,6 +1470,8 @@
     if ($('pConsigneeName')) $('pConsigneeName').textContent = entry.customerName || '';
     if ($('pCustomerAddress')) $('pCustomerAddress').textContent = entry.customerAddress || '';
     if ($('pConsigneeAddress')) $('pConsigneeAddress').textContent = entry.customerAddress || '';
+    if ($('pCustomerPhone')) $('pCustomerPhone').textContent = entry.customerPhone || '';
+    if ($('pConsigneePhone')) $('pConsigneePhone').textContent = entry.customerPhone || '';
 
     const tbody = $('pItemsBody');
     if (!tbody) return;
@@ -1703,6 +1724,7 @@
         isEst ? 'Estimation Quote' : 'Cash Bill',
         entry.invoiceNo || (isEst ? 'ESTIMATE' : ''),
         `"${(entry.customerName || '').replace(/"/g, '""')}"`,
+        `"${(entry.customerPhone || '').replace(/"/g, '""')}"`,
         `"${itemsText.replace(/"/g, '""')}"`,
         billed,
         cost,
@@ -1817,6 +1839,7 @@
     state.invoiceDate = todayStr();
     state.customerName = '';
     state.customerAddress = '';
+    state.customerPhone = '';
     state.items = [{ id: uid(), turboName: '', modelNo: '', partNo: '', serialNo: '', workDone: '', cost: '', discount: '' }];
 
     if (!preserveNo) {
@@ -2385,6 +2408,14 @@
       sync();
     });
 
+    if ($('customerPhoneInput')) {
+      $('customerPhoneInput').addEventListener('input', e => {
+        state.customerPhone = e.target.value;
+        setSavedState(false);
+        sync();
+      });
+    }
+
     $('addProductBtn').addEventListener('click', () => addRow(true));
 
     // Bill Saved Success Popup Modal
@@ -2532,6 +2563,54 @@
     setTimeout(dismiss, 2400);
     splash.addEventListener('click', dismiss);
   }
+
+  /* ── Intelligent Android & Browser Back Button Navigation ── */
+  let lastBackPressTime = 0;
+
+  function pushModalState(modalId) {
+    try {
+      history.pushState({ modal: modalId }, '');
+    } catch (err) {}
+  }
+
+  function handleBackButton(e) {
+    // 1. If any modal is open, close it first without exiting the app
+    const openModals = document.querySelectorAll('.modal-overlay.open');
+    if (openModals.length > 0) {
+      openModals.forEach(m => m.classList.remove('open'));
+      return;
+    }
+
+    // 2. If drawer is open, close drawer
+    const drawer = $('drawerMenu');
+    if (drawer && drawer.classList.contains('open')) {
+      toggleDrawer(false);
+      return;
+    }
+
+    // 3. If in Bill Generator or Finance Notebook, navigate 1-step back to Workspace Hub
+    if (state.activeView !== 'workspace') {
+      switchView('workspace', false);
+      return;
+    }
+
+    // 4. If already at Workspace Hub (root), gentle two-tap back to exit
+    const now = Date.now();
+    if (now - lastBackPressTime > 2000) {
+      lastBackPressTime = now;
+      toast('Press back again to exit', 2000);
+      try {
+        history.pushState({ view: 'workspace', root: true }, '');
+      } catch (err) {}
+    }
+  }
+
+  window.addEventListener('popstate', handleBackButton);
+
+  // Initialize root history state
+  try {
+    history.replaceState({ view: state.activeView || 'workspace', root: true }, '');
+  } catch (err) {}
 
   function init() {
     initSplashScreen();

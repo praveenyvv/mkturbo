@@ -3,12 +3,12 @@
  * Instant cache update & cloud sync bypass
  */
 
-const CACHE_NAME = 'mkturbo-cache-v4.7';
+const CACHE_NAME = 'mkturbo-cache-v4.8';
 const STATIC_ASSETS = [
   './',
   './index.html',
-  './style.css?v=4.7',
-  './app.js?v=4.7',
+  './style.css?v=4.8',
+  './app.js?v=4.8',
   './manifest.json',
   './html2pdf.bundle.min.js',
   './icon-192.png',
