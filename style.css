@@ -1839,3 +1839,228 @@ body {
   70% { width: 85%; }
   100% { width: 100%; }
 }
+
+
+/* ── Document Type Selector (Cash Bill vs Estimation Bill) ── */
+.doc-type-selector-wrap {
+  background: #f8fafc;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin-bottom: 14px;
+}
+
+.doc-type-pills {
+  display: flex;
+  gap: 8px;
+  margin-top: 5px;
+}
+
+.btn-doc-type {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  border: 1.5px solid #cbd5e1;
+  background: #ffffff;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.btn-doc-type.active {
+  background: #004b93;
+  color: #ffffff;
+  border-color: #004b93;
+  box-shadow: 0 2px 6px rgba(0, 75, 147, 0.22);
+}
+
+.btn-doc-type.type-estimate.active {
+  background: #d97706;
+  border-color: #d97706;
+  box-shadow: 0 2px 6px rgba(217, 119, 6, 0.25);
+}
+
+.doc-type-hint {
+  font-size: 0.72rem;
+  color: #64748b;
+  font-weight: 600;
+  margin-top: 6px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+/* ── Per-Item Pricing & Discount Grid ── */
+.prod-pricing-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+}
+
+.discount-tag {
+  color: #059669 !important;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.disc-pill {
+  font-size: 0.65rem;
+  background: #d1fae5;
+  color: #047857;
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-weight: 700;
+}
+
+.prod-discount {
+  border-color: #a7f3d0 !important;
+  background: #f0fdf4 !important;
+  color: #047857 !important;
+  font-weight: 700 !important;
+}
+
+.prod-net-amount {
+  background: #f8fafc !important;
+  font-weight: 700 !important;
+  color: #004b93 !important;
+}
+
+@media (max-width: 480px) {
+  .prod-pricing-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+  .prod-pricing-grid .field-item:last-child {
+    grid-column: span 2;
+  }
+}
+
+/* ── Invoice Precautions Band ── */
+.inv-precautions-band {
+  border-bottom: 2px solid #004b93;
+  background: #f8fafc;
+  padding: 6px 12px 7px;
+}
+
+.inv-precautions-head {
+  font-size: 8.5pt;
+  font-weight: 800;
+  color: #004b93;
+  letter-spacing: 0.5px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.inv-precautions-list {
+  margin: 4px 0 0;
+  padding-left: 18px;
+  font-size: 7.8pt;
+  line-height: 1.35;
+  color: #1e293b;
+}
+
+.inv-precautions-list li {
+  margin-bottom: 2px;
+}
+
+.inv-precautions-list strong {
+  color: #004b93;
+  font-weight: 700;
+}
+
+/* ── Discount on printable bill ── */
+.inv-turbo-disc {
+  font-size: 8pt;
+  color: #059669;
+  font-weight: 600;
+  margin-top: 2px;
+}
+
+.inv-breakdown-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border-bottom: 1px dashed #cbd5e1;
+  padding-bottom: 3px;
+  margin-bottom: 3px;
+  width: 100%;
+}
+
+.inv-sub-line, .inv-disc-line {
+  display: flex;
+  justify-content: space-between;
+  font-size: 8.5pt;
+}
+
+.inv-sub-lbl { color: #64748b; font-weight: 600; }
+.inv-sub-val { color: #0f172a; font-weight: 700; }
+
+.inv-disc-lbl { color: #059669; font-weight: 700; }
+.inv-disc-val { color: #059669; font-weight: 800; }
+
+.inv-final-total-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+/* ── Estimation Badges & Buttons in Notebook ── */
+.stat-estimates {
+  background: #fffbeb;
+  border-color: #fde68a;
+}
+.stat-estimates .stat-val { color: #b45309; }
+
+.ledger-badge-estimate {
+  background: #fef3c7 !important;
+  color: #b45309 !important;
+  border-color: #fcd34d !important;
+}
+
+.badge-status-blocked {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #b45309;
+  background: #fef3c7;
+  border: 1px solid #fde68a;
+  padding: 2px 7px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.btn-convert-bill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: #004b93;
+  color: #ffffff;
+  border: none;
+  font-size: 0.76rem;
+  font-weight: 700;
+  padding: 6px 12px;
+  border-radius: 7px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  margin-top: 8px;
+  box-shadow: 0 1px 3px rgba(0, 75, 147, 0.2);
+}
+
+.btn-convert-bill:hover {
+  background: #00366b;
+}
+
+.inv-stamp-estimate {
+  color: #d97706 !important;
+  font-size: 11pt !important;
+  letter-spacing: 1px;
+}

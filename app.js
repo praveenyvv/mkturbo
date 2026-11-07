@@ -25,6 +25,7 @@
   // State
   const state = {
     activeView: localStorage.getItem(STORAGE.LAST_VIEW) || 'invoice', // 'invoice' | 'finance'
+    billType: 'cash', // 'cash' | 'estimation'
     invoiceNo: localStorage.getItem(STORAGE.NEXT_INV_NO) || '133',
     invoiceDate: todayStr(),
     customerName: '',
@@ -32,10 +33,11 @@
     editingLedgerId: null, // Tracks if currently editing an existing ledger bill
     isSaved: false, // Save mechanism state
     items: [
-      { id: uid(), turboName: '', modelNo: '', partNo: '', serialNo: '', workDone: '', cost: '' }
+      { id: uid(), turboName: '', modelNo: '', partNo: '', serialNo: '', workDone: '', cost: '', discount: '' }
     ],
     finance: {
       searchQuery: '',
+      statusFilter: 'ALL', // 'ALL' | 'cash' | 'estimation'
       monthFilter: 'ALL',
       yearFilter: 'ALL',
       pendingDeleteId: null
@@ -95,7 +97,18 @@
       .replace(/"/g,'&quot;').replace(/'/g,'&#039;');
   }
 
+  function formatNet(cost, disc) {
+    const c = parseFloat(cost) || 0;
+    const d = parseFloat(disc) || 0;
+    const net = Math.max(0, c - d);
+    return net > 0 ? ('\u20B9 ' + net.toLocaleString('en-IN')) : '\u20B9 0';
+  }
+
   function pdfFilename(no) {
+    if (state.billType === 'estimation') {
+      const cust = (state.customerName || 'ESTIMATE').trim().replace(/[^a-zA-Z0-9_-]/g, '_') || 'QUOTE';
+      return `MKTURBO_ESTIMATION_${cust}.pdf`;
+    }
     const n = String(no || state.invoiceNo || '133').trim().replace(/[^a-zA-Z0-9_-]/g, '_');
     return `MKTURBO_CASHBILL_${n}.pdf`;
   }
@@ -126,30 +139,93 @@
     if (dlBtn) dlBtn.disabled = !isSaved;
     if (shareBtn) shareBtn.disabled = !isSaved;
     if (printBtn) printBtn.disabled = !isSaved;
+
+    const isEdit = Boolean(state.editingLedgerId);
+    const isEstimate = state.billType === 'estimation';
+    const docLabel = isEstimate ? 'Estimate' : 'Bill';
+
     if (nextBtn) {
       nextBtn.style.display = isSaved ? 'flex' : 'none';
-      if (nextNo) {
+      if (nextNo && !isEstimate) {
         nextBtn.innerHTML = `<span>+ Start Next Bill (#${nextNo})</span>`;
+      } else {
+        nextBtn.innerHTML = `<span>+ Start Fresh Document</span>`;
       }
     }
 
-    const isEdit = Boolean(state.editingLedgerId);
-
     if (isSaved) {
       if (saveBtn) saveBtn.className = 'btn-save-bill saved';
-      if (saveBtnText) saveBtnText.textContent = isEdit ? 'Changes Updated in Notebook' : 'Bill Saved in Notebook';
+      if (saveBtnText) saveBtnText.textContent = isEdit ? `${docLabel} Updated in Notebook` : `${docLabel} Saved in Notebook`;
       if (banner) banner.className = 'save-status-banner saved';
-      const nStr = (!isEdit && nextNo) ? ` (Next: #${nextNo})` : '';
+      const nStr = (!isEdit && nextNo && !isEstimate) ? ` (Next: #${nextNo})` : '';
       if (bannerText) bannerText.textContent = isEdit
-        ? `Bill #${state.invoiceNo || '---'} updated in Notebook! Download & Share are enabled.`
-        : `Bill #${state.invoiceNo || '---'} saved!${nStr} Download & Share are enabled.`;
+        ? `${docLabel} ${isEstimate ? '' : '#' + (state.invoiceNo || '---')} updated in Notebook! Download & Share are enabled.`
+        : `${docLabel} ${isEstimate ? '' : '#' + (state.invoiceNo || '---')} saved!${nStr} Download & Share are enabled.`;
     } else {
       if (saveBtn) saveBtn.className = 'btn-save-bill unsaved';
-      if (saveBtnText) saveBtnText.textContent = isEdit ? 'Update Bill in Notebook' : 'Save Bill to Notebook';
+      if (saveBtnText) saveBtnText.textContent = isEdit ? `Update ${docLabel} in Notebook` : `Save ${docLabel} to Notebook`;
       if (banner) banner.className = 'save-status-banner unsaved';
       if (bannerText) bannerText.textContent = isEdit
-        ? `Editing Bill #${state.invoiceNo} - Tap "Update Bill in Notebook" to save changes.`
-        : 'Please save bill to enable Download and Share';
+        ? `Editing ${docLabel} ${isEstimate ? '' : '#' + state.invoiceNo} - Tap "Update ${docLabel} in Notebook" to save changes.`
+        : `Please save ${docLabel.toLowerCase()} to enable Download and Share`;
+    }
+  }
+
+  /* ── Document Type Switcher (Cash Bill vs Estimation Bill) ── */
+  function setBillType(type, silent = false) {
+    state.billType = type === 'estimation' ? 'estimation' : 'cash';
+    const isEst = state.billType === 'estimation';
+
+    const btnCash = $('btnTypeCashBill');
+    const btnEst = $('btnTypeEstimation');
+    if (btnCash) btnCash.classList.toggle('active', !isEst);
+    if (btnEst) {
+      btnEst.classList.toggle('active', isEst);
+      btnEst.classList.toggle('type-estimate', isEst);
+    }
+
+    const hint = $('docTypeHint');
+    if (hint) {
+      hint.innerHTML = isEst
+        ? '⚠️ <strong>Estimation Quote Mode:</strong> No bill number assigned &bull; Money is <em>blocked</em> in Notebook until converted to Cash Bill'
+        : 'Official serial bill with tax/profit tracking &bull; Added to Finance Book';
+    }
+
+    const docTitle = $('pDocTitle');
+    if (docTitle) docTitle.textContent = isEst ? 'ESTIMATION BILL' : 'CASH BILL';
+
+    const pNo = $('pInvoiceNo');
+    const invInput = $('invoiceNoInput');
+    const nextBtn = $('nextNoBtn');
+
+    if (isEst) {
+      if (pNo) {
+        pNo.textContent = 'ESTIMATE';
+        pNo.className = 'inv-no-stamp inv-stamp-estimate';
+      }
+      if (invInput) {
+        invInput.value = 'ESTIMATE';
+        invInput.disabled = true;
+      }
+      if (nextBtn) nextBtn.style.display = 'none';
+    } else {
+      if (pNo) {
+        pNo.textContent = state.invoiceNo || '---';
+        pNo.className = 'inv-no-stamp';
+      }
+      if (invInput) {
+        invInput.value = state.invoiceNo || '133';
+        invInput.disabled = false;
+      }
+      if (nextBtn) nextBtn.style.display = 'inline-flex';
+    }
+
+    if ($('dlBtnFilename')) $('dlBtnFilename').textContent = pdfFilename();
+    setSavedState(state.isSaved);
+    sync();
+
+    if (!silent) {
+      toast(isEst ? '📋 Switched to Estimation Bill (No Bill No. & Blocked)' : '📄 Switched to Official Cash Bill');
     }
   }
 
@@ -266,20 +342,33 @@
     return parts.join(' - ') || 'Turbo Job';
   }
 
-  /* ── Auto-Sync Current Cash Bill to Finance Book ── */
+  /* ── Auto-Sync Current Bill/Estimate to Finance Book ── */
   function syncInvoiceToFinanceBook() {
     let billedTotal = 0;
+    let subtotalSum = 0;
+    let discountSum = 0;
     const itemsSummary = [];
     const rawItems = [];
 
     state.items.forEach(item => {
       const cost = parseFloat(item.cost) || 0;
-      const hasContent = item.turboName || item.modelNo || item.partNo || item.serialNo || item.workDone || cost > 0;
+      const discount = parseFloat(item.discount) || 0;
+      const net = Math.max(0, cost - discount);
+      const hasContent = item.turboName || item.modelNo || item.partNo || item.serialNo || item.workDone || cost > 0 || discount > 0;
       if (hasContent) {
-        billedTotal += cost;
+        subtotalSum += cost;
+        discountSum += discount;
+        billedTotal += net;
+
+        let desc = formatItemSummary(item);
+        if (discount > 0) {
+          desc += ` (Disc: ₹${discount})`;
+        }
         itemsSummary.push({
-          name: formatItemSummary(item),
-          cost: cost
+          name: desc,
+          cost: net,
+          originalPrice: cost,
+          discount: discount
         });
         rawItems.push({
           turboName: item.turboName || '',
@@ -287,20 +376,22 @@
           partNo: item.partNo || '',
           serialNo: item.serialNo || '',
           workDone: item.workDone || '',
-          cost: item.cost || ''
+          cost: item.cost || '',
+          discount: item.discount || ''
         });
       }
     });
 
+    const isEstimate = state.billType === 'estimation';
     const ledger = getLedger();
-    const invNo = String(state.invoiceNo || '---').trim();
+    const invNo = isEstimate ? 'ESTIMATE' : String(state.invoiceNo || '---').trim();
 
-    // Match by editingLedgerId FIRST, then by invoiceNo
+    // Match by editingLedgerId FIRST, then by invoiceNo (if not estimate)
     let existingIndex = -1;
     if (state.editingLedgerId) {
       existingIndex = ledger.findIndex(e => e.id === state.editingLedgerId);
     }
-    if (existingIndex < 0) {
+    if (existingIndex < 0 && !isEstimate) {
       existingIndex = ledger.findIndex(e => String(e.invoiceNo).trim() === invNo);
     }
 
@@ -308,11 +399,15 @@
       // UPDATE EXISTING RECORD IN-PLACE - NEVER CREATE DUPLICATE
       const existing = ledger[existingIndex];
       existing.invoiceNo = invNo;
+      existing.billType = state.billType;
+      existing.isEstimation = isEstimate;
       existing.date = state.invoiceDate;
       existing.customerName = state.customerName.trim() || 'Cash / Counter';
       existing.customerAddress = state.customerAddress.trim();
       existing.items = itemsSummary;
       existing.rawItems = rawItems;
+      existing.subtotal = subtotalSum;
+      existing.totalDiscount = discountSum;
       existing.billedAmount = billedTotal;
       const cost = parseFloat(existing.actualCost) || 0;
       existing.profit = billedTotal - cost;
@@ -323,16 +418,20 @@
       const newEntry = {
         id: uid(),
         invoiceNo: invNo,
+        billType: state.billType,
+        isEstimation: isEstimate,
         date: state.invoiceDate,
         customerName: state.customerName.trim() || 'Cash / Counter',
         customerAddress: state.customerAddress.trim(),
         items: itemsSummary,
         rawItems: rawItems,
+        subtotal: subtotalSum,
+        totalDiscount: discountSum,
         billedAmount: billedTotal,
         actualCost: 0,
         profit: billedTotal,
         notes: '',
-        source: 'cashbill',
+        source: isEstimate ? 'estimate' : 'cashbill',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       };
@@ -340,9 +439,11 @@
     }
 
     saveLedger(ledger);
-    const nextNo = computeNextInvoiceNo(ledger);
-    localStorage.setItem(STORAGE.NEXT_INV_NO, nextNo);
-    pushSyncToCloud(state.editingLedgerId ? 'bill_update' : 'bill_save');
+    if (!isEstimate) {
+      const nextNo = computeNextInvoiceNo(ledger);
+      localStorage.setItem(STORAGE.NEXT_INV_NO, nextNo);
+    }
+    pushSyncToCloud(state.editingLedgerId ? 'bill_update' : (isEstimate ? 'estimate_save' : 'bill_save'));
   }
 
   /* ── User Action: Save Bill Button Click ───── */
@@ -350,7 +451,8 @@
     let hasContent = false;
     state.items.forEach(item => {
       const cost = parseFloat(item.cost) || 0;
-      if (item.turboName || item.modelNo || item.partNo || item.serialNo || item.workDone || cost > 0) {
+      const discount = parseFloat(item.discount) || 0;
+      if (item.turboName || item.modelNo || item.partNo || item.serialNo || item.workDone || cost > 0 || discount > 0) {
         hasContent = true;
       }
     });
@@ -361,10 +463,16 @@
     }
 
     const wasEditing = Boolean(state.editingLedgerId);
+    const isEstimate = state.billType === 'estimation';
     syncInvoiceToFinanceBook();
     const nextNo = computeNextInvoiceNo(getLedger());
-    setSavedState(true, nextNo);
-    toast(wasEditing ? `✅ Cash Bill #${state.invoiceNo} updated in Notebook!` : `✅ Cash Bill #${state.invoiceNo} saved! Next: #${nextNo}`);
+    setSavedState(true, isEstimate ? '' : nextNo);
+
+    if (isEstimate) {
+      toast(wasEditing ? '✅ Estimation Quote updated in Notebook (Blocked)' : '✅ Estimation saved in Notebook! (Money Blocked)');
+    } else {
+      toast(wasEditing ? `✅ Cash Bill #${state.invoiceNo} updated in Notebook!` : `✅ Cash Bill #${state.invoiceNo} saved! Next: #${nextNo}`);
+    }
   }
 
   /* ── Render Product Rows (Expanded Turbo Fields) ───── */
@@ -413,15 +521,30 @@
           </div>
         </div>
 
-        <!-- Row 3: What we have done + Cost -->
+        <!-- Row 3: What we have done -->
         <div class="prod-inputs-grid mt-1">
           <div class="field-item flex-grow">
             <label class="input-tag">What we have done (Work / Parts)</label>
             <input type="text" class="inp prod-work-done" placeholder="e.g. Repair Kit R/P, Core Assy &amp; Remachining" value="${esc(item.workDone)}">
           </div>
-          <div class="field-item flex-cost">
-            <label class="input-tag">Cost (&#8377;)</label>
-            <input type="number" step="any" min="0" class="inp prod-cost" placeholder="Amount &#8377;" value="${item.cost || ''}">
+        </div>
+
+        <!-- Row 4: Pricing Grid (Rate, Discount, Net Amount) -->
+        <div class="prod-pricing-grid mt-1">
+          <div class="field-item">
+            <label class="input-tag">Price / Rate (&#8377;)</label>
+            <input type="number" step="any" min="0" class="inp prod-cost" placeholder="Price &#8377;" value="${item.cost || ''}">
+          </div>
+          <div class="field-item">
+            <label class="input-tag discount-tag">
+              <span>Discount (&#8377;)</span>
+              <span class="disc-pill">Off</span>
+            </label>
+            <input type="number" step="any" min="0" class="inp prod-discount" placeholder="Disc &#8377;" value="${item.discount || ''}">
+          </div>
+          <div class="field-item">
+            <label class="input-tag">Net Amount (&#8377;)</label>
+            <input type="text" readonly class="inp prod-net-amount" value="${formatNet(item.cost, item.discount)}">
           </div>
         </div>`;
 
@@ -431,6 +554,8 @@
       const serialNoInp = card.querySelector('.prod-serial-no');
       const workDoneInp = card.querySelector('.prod-work-done');
       const costInp = card.querySelector('.prod-cost');
+      const discountInp = card.querySelector('.prod-discount');
+      const netAmountInp = card.querySelector('.prod-net-amount');
       const delBtn = card.querySelector('.btn-del');
 
       function onAnyItemChange() {
@@ -448,16 +573,31 @@
       partNoInp.addEventListener('input', e => { item.partNo = e.target.value; onAnyItemChange(); });
       serialNoInp.addEventListener('input', e => { item.serialNo = e.target.value; onAnyItemChange(); });
       workDoneInp.addEventListener('input', e => { item.workDone = e.target.value; onAnyItemChange(); });
-      costInp.addEventListener('input', e => { item.cost = e.target.value; onAnyItemChange(); });
+
+      costInp.addEventListener('input', e => {
+        item.cost = e.target.value;
+        if (netAmountInp) netAmountInp.value = formatNet(item.cost, item.discount);
+        onAnyItemChange();
+      });
+
+      discountInp.addEventListener('input', e => {
+        item.discount = e.target.value;
+        if (netAmountInp) netAmountInp.value = formatNet(item.cost, item.discount);
+        onAnyItemChange();
+      });
 
       costInp.addEventListener('keydown', e => {
+        if (e.key === 'Enter') { e.preventDefault(); if (discountInp) discountInp.focus(); }
+      });
+
+      discountInp.addEventListener('keydown', e => {
         if (e.key === 'Enter') { e.preventDefault(); addRow(true); }
       });
 
       delBtn.addEventListener('click', () => {
         setSavedState(false);
         if (state.items.length === 1) {
-          item.turboName = ''; item.modelNo = ''; item.partNo = ''; item.serialNo = ''; item.workDone = ''; item.cost = '';
+          item.turboName = ''; item.modelNo = ''; item.partNo = ''; item.serialNo = ''; item.workDone = ''; item.cost = ''; item.discount = '';
           renderRows(); sync();
         } else {
           state.items = state.items.filter(i => i.id !== item.id);
@@ -474,7 +614,7 @@
 
   function addRow(focus) {
     setSavedState(false);
-    const item = { id: uid(), turboName: '', modelNo: '', partNo: '', serialNo: '', workDone: '', cost: '' };
+    const item = { id: uid(), turboName: '', modelNo: '', partNo: '', serialNo: '', workDone: '', cost: '', discount: '' };
     state.items.push(item);
     renderRows(); sync();
     if (focus) {
@@ -504,14 +644,20 @@
     const tbody = $('pItemsBody');
     tbody.innerHTML = '';
 
+    let subtotal = 0;
+    let totalDiscount = 0;
     let total = 0;
     let usedRows = 0;
 
     state.items.forEach(item => {
       const cost = parseFloat(item.cost) || 0;
-      const hasContent = item.turboName || item.modelNo || item.partNo || item.serialNo || item.workDone || cost > 0;
+      const discount = parseFloat(item.discount) || 0;
+      const net = Math.max(0, cost - discount);
+      const hasContent = item.turboName || item.modelNo || item.partNo || item.serialNo || item.workDone || cost > 0 || discount > 0;
       if (hasContent) {
-        total += cost;
+        subtotal += cost;
+        totalDiscount += discount;
+        total += net;
         usedRows++;
 
         let nameHtml = '';
@@ -532,6 +678,10 @@
           nameHtml += `<div class="inv-turbo-work">${esc(item.workDone)}</div>`;
         }
 
+        if (discount > 0) {
+          nameHtml += `<div class="inv-turbo-disc">Less Discount: -\u20B9 ${discount.toLocaleString('en-IN')}</div>`;
+        }
+
         if (!nameHtml) {
           nameHtml = `<div class="inv-turbo-work">---</div>`;
         }
@@ -544,7 +694,7 @@
           <td class="col-qty"></td>
           <td class="col-unit"></td>
           <td class="col-rate">${cost > 0 ? cost.toLocaleString('en-IN') : ''}</td>
-          <td class="col-amt">${cost > 0 ? cost.toLocaleString('en-IN') : ''}</td>`;
+          <td class="col-amt">${net > 0 ? net.toLocaleString('en-IN') : (cost > 0 ? '0' : '')}</td>`;
         tbody.appendChild(tr);
       }
     });
@@ -560,6 +710,18 @@
         <td class="col-rate">&nbsp;</td>
         <td class="col-amt">&nbsp;</td>`;
       tbody.appendChild(tr);
+    }
+
+    // Breakdown subtotal and total discount display
+    const bdown = $('pBreakdownRows');
+    if (bdown) {
+      if (totalDiscount > 0) {
+        bdown.style.display = 'flex';
+        if ($('pSubtotalAmount')) $('pSubtotalAmount').textContent = formatINR(subtotal);
+        if ($('pDiscountTotal')) $('pDiscountTotal').textContent = '-' + formatINR(totalDiscount);
+      } else {
+        bdown.style.display = 'none';
+      }
     }
 
     const words = toWords(total);
@@ -704,6 +866,34 @@
     window.print();
   }
 
+  /* ── Convert Estimation to Cash Bill ─────────── */
+  function convertEstimateToCashBill(targetId) {
+    const ledger = getLedger();
+    const entry = ledger.find(e => e.id === targetId);
+    if (!entry) return;
+
+    const nextNo = computeNextInvoiceNo(ledger);
+    const cust = entry.customerName || 'Cash';
+    const amountStr = formatINR(entry.billedAmount);
+
+    const ok = window.confirm(`Convert Estimation for "${cust}" (${amountStr}) into official Cash Bill #${nextNo}?\n\n• Assigns official Bill #${nextNo}\n• Unblocks ${amountStr} into your Total Sales & Profit\n• Syncs across all devices`);
+    if (!ok) return;
+
+    entry.billType = 'cash';
+    entry.isEstimation = false;
+    entry.invoiceNo = nextNo;
+    entry.source = 'cashbill';
+    entry.updatedAt = new Date().toISOString();
+
+    const afterNextNo = computeNextInvoiceNo(ledger);
+    localStorage.setItem(STORAGE.NEXT_INV_NO, afterNextNo);
+
+    saveLedger(ledger);
+    renderFinanceLedger();
+    pushSyncToCloud('convert_estimate');
+    toast(`⚡ Converted to Cash Bill #${nextNo}! Money added to Finance Book.`);
+  }
+
   /* ── FINANCE NOTEBOOK LOGIC & ANALYTICS ───── */
   function populateDateFilters(ledger) {
     const monthSelect = $('financeMonthFilter');
@@ -754,11 +944,16 @@
     const ledger = getLedger();
     populateDateFilters(ledger);
 
-    const query = (state.finance.searchQuery || '').toLowerCase().trim();
+    const statusFilter = $('financeStatusFilter') ? $('financeStatusFilter').value : 'ALL';
     const monthFilter = $('financeMonthFilter').value;
     const yearFilter = $('financeYearFilter').value;
+    const query = (state.finance.searchQuery || '').toLowerCase().trim();
 
     let filtered = ledger.filter(entry => {
+      const isEst = Boolean(entry.isEstimation || entry.billType === 'estimation');
+      if (statusFilter === 'cash' && isEst) return false;
+      if (statusFilter === 'estimation' && !isEst) return false;
+
       if (monthFilter !== 'ALL' && entry.date) {
         if (!entry.date.startsWith(monthFilter)) return false;
       }
@@ -776,27 +971,53 @@
       return true;
     });
 
-    // Calculate Analytics
+    // Calculate Analytics - Blocked Money from Estimates is NOT added to confirmed sales/profit!
     let totalSales = 0;
     let totalCost = 0;
     let totalProfit = 0;
+    let confirmedCount = 0;
+
+    let blockedSales = 0;
+    let blockedCost = 0;
+    let blockedCount = 0;
 
     filtered.forEach(entry => {
       const b = parseFloat(entry.billedAmount) || 0;
       const c = parseFloat(entry.actualCost) || 0;
       const p = b - c;
-      totalSales += b;
-      totalCost += c;
-      totalProfit += p;
+      const isEst = Boolean(entry.isEstimation || entry.billType === 'estimation');
+
+      if (isEst) {
+        blockedSales += b;
+        blockedCost += c;
+        blockedCount += 1;
+      } else {
+        totalSales += b;
+        totalCost += c;
+        totalProfit += p;
+        confirmedCount += 1;
+      }
     });
 
     $('statTotalSales').textContent = formatINRSymbol(totalSales);
     $('statTotalCost').textContent = formatINRSymbol(totalCost);
     $('statTotalProfit').textContent = formatINRSymbol(totalProfit);
 
-    $('statSalesCount').textContent = `${filtered.length} job${filtered.length === 1 ? '' : 's'} recorded`;
+    $('statSalesCount').textContent = `${confirmedCount} bill${confirmedCount === 1 ? '' : 's'} recorded`;
     const margin = totalSales > 0 ? Math.round((totalProfit / totalSales) * 100) : 0;
     $('statProfitMargin').textContent = `Profit Margin: ${margin}%`;
+
+    // Blocked Stat Card
+    const estCard = $('statCardEstimates');
+    if (estCard) {
+      if (blockedCount > 0) {
+        estCard.style.display = 'flex';
+        if ($('statBlockedSales')) $('statBlockedSales').textContent = formatINRSymbol(blockedSales);
+        if ($('statBlockedCount')) $('statBlockedCount').textContent = `${blockedCount} pending quote${blockedCount === 1 ? '' : 's'} (Blocked)`;
+      } else {
+        estCard.style.display = 'none';
+      }
+    }
 
     // Remember active focus & selection if user is typing
     const container = $('financeLedgerList');
@@ -827,7 +1048,7 @@
         <div class="empty-state" style="text-align:center; padding: 40px 16px; color: #94a3b8;">
           <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom:8px;"><circle cx="12" cy="10" r="8"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
           <p style="font-weight: 700; color: #475569;">No entries found in this period.</p>
-          <p style="font-size: 0.76rem;">Saved cash bills automatically appear here, or tap "+ Add Entry".</p>
+          <p style="font-size: 0.76rem;">Saved cash bills and estimates automatically appear here, or tap "+ Add Entry".</p>
         </div>`;
       return;
     }
@@ -837,6 +1058,7 @@
       card.className = 'ledger-card';
       card.dataset.id = entry.id;
 
+      const isEst = Boolean(entry.isEstimation || entry.billType === 'estimation');
       const billed = parseFloat(entry.billedAmount) || 0;
       const cost = parseFloat(entry.actualCost) || 0;
       const profit = billed - cost;
@@ -855,21 +1077,40 @@
       const profitClass = profit >= 0 ? 'profit-green' : 'profit-red';
       const profitPrefix = profit >= 0 ? '+' : '';
 
+      const invBadge = isEst
+        ? `<span class="ledger-inv-no ledger-badge-estimate">📋 ESTIMATE</span>`
+        : `<span class="ledger-inv-no">#${esc(entry.invoiceNo)}</span>`;
+
+      const statusBadge = isEst
+        ? `<span class="badge-status-blocked">🟡 Blocked</span>`
+        : '';
+
+      const convertBtnHtml = isEst
+        ? `<button type="button" class="btn-convert-bill" title="Convert to Official Cash Bill and add money to book">
+             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+             <span>Convert to Cash Bill</span>
+           </button>`
+        : '';
+
+      const profitLbl = isEst ? 'Projected Profit' : 'Your Profit';
+      const profitSuffix = isEst ? ' (Blocked)' : '';
+
       card.innerHTML = `
         <div class="ledger-header">
           <div class="ledger-meta">
-            <span class="ledger-inv-no">#${esc(entry.invoiceNo)}</span>
+            ${invBadge}
             <span class="ledger-date">${toDDMMYYYY(entry.date)}</span>
             <span class="ledger-customer">${esc(entry.customerName)}</span>
+            ${statusBadge}
           </div>
           <!-- Action Buttons: Edit, Share, Delete -->
           <div class="ledger-actions">
-            <button type="button" class="btn-card-action btn-card-edit" title="Edit Cash Bill #${esc(entry.invoiceNo)}">
+            <button type="button" class="btn-card-action btn-card-edit" title="Edit ${isEst ? 'Estimate' : 'Cash Bill #' + esc(entry.invoiceNo)}">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
               </svg>
             </button>
-            <button type="button" class="btn-card-action btn-card-share" title="Download / Share PDF #${esc(entry.invoiceNo)}">
+            <button type="button" class="btn-card-action btn-card-share" title="Download / Share PDF">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
               </svg>
@@ -899,10 +1140,12 @@
           </div>
 
           <div class="calc-block">
-            <span class="calc-lbl">Your Profit</span>
-            <span class="calc-val-profit ${profitClass}">${profitPrefix}${formatINR(profit)}</span>
+            <span class="calc-lbl">${profitLbl}</span>
+            <span class="calc-val-profit ${profitClass}">${profitPrefix}${formatINR(profit)}${profitSuffix}</span>
           </div>
         </div>
+
+        ${convertBtnHtml}
 
         <div class="ledger-notes-row">
           <input type="text" class="inp notes-input" placeholder="Cost breakdown notes (e.g. Kit ₹3000, Lathe ₹500)" value="${esc(entry.notes || '')}">
@@ -914,6 +1157,7 @@
       const editBtn = card.querySelector('.btn-card-edit');
       const shareBtn = card.querySelector('.btn-card-share');
       const delBtn = card.querySelector('.btn-card-del');
+      const convBtn = card.querySelector('.btn-convert-bill');
 
       let costDebounceTimer = null;
       costInput.addEventListener('input', e => {
@@ -971,6 +1215,13 @@
         openDeleteConfirmModal(entry);
       });
 
+      if (convBtn) {
+        convBtn.addEventListener('click', e => {
+          e.stopPropagation();
+          convertEstimateToCashBill(entry.id);
+        });
+      }
+
       container.appendChild(card);
     });
 
@@ -1010,7 +1261,10 @@
   /* ── Load Bill for Editing ────────────────── */
   function loadBillForEditing(entry) {
     state.editingLedgerId = entry.id; // Lock editing to this exact record ID
-    state.invoiceNo = entry.invoiceNo || '133';
+    const isEst = Boolean(entry.isEstimation || entry.billType === 'estimation');
+    setBillType(isEst ? 'estimation' : 'cash', true);
+
+    state.invoiceNo = isEst ? 'ESTIMATE' : (entry.invoiceNo || '133');
     state.invoiceDate = entry.date || todayStr();
     state.customerName = (entry.customerName === 'Cash / Counter' || entry.customerName === 'Counter / Cash') ? '' : (entry.customerName || '');
     state.customerAddress = entry.customerAddress || '';
@@ -1023,7 +1277,8 @@
         partNo: it.partNo || '',
         serialNo: it.serialNo || '',
         workDone: it.workDone || '',
-        cost: it.cost || ''
+        cost: it.cost || '',
+        discount: it.discount || ''
       }));
     } else if (entry.items && entry.items.length > 0) {
       state.items = entry.items.map(it => ({
@@ -1033,13 +1288,16 @@
         partNo: '',
         serialNo: '',
         workDone: '',
-        cost: it.cost || ''
+        cost: it.originalPrice || it.cost || '',
+        discount: it.discount || ''
       }));
     } else {
-      state.items = [{ id: uid(), turboName: '', modelNo: '', partNo: '', serialNo: '', workDone: '', cost: '' }];
+      state.items = [{ id: uid(), turboName: '', modelNo: '', partNo: '', serialNo: '', workDone: '', cost: '', discount: '' }];
     }
 
-    $('invoiceNoInput').value = state.invoiceNo;
+    if (!isEst) {
+      $('invoiceNoInput').value = state.invoiceNo;
+    }
     $('invoiceDateInput').value = state.invoiceDate;
     $('customerNameInput').value = state.customerName;
     $('customerAddressInput').value = state.customerAddress;
@@ -1051,7 +1309,7 @@
     setSavedState(false);
 
     switchView('invoice');
-    toast(`✏️ Editing Cash Bill #${state.invoiceNo} (updates in-place)`);
+    toast(isEst ? '✏️ Editing Estimation Quote' : `✏️ Editing Cash Bill #${state.invoiceNo} (updates in-place)`);
   }
 
   /* ── Direct PDF Download from Ledger ──────── */
@@ -1126,10 +1384,11 @@
       return;
     }
 
-    const headers = ['Date', 'Bill No', 'Customer Name', 'Turbos & Work Done', 'Billed Amount (INR)', 'Our Actual Cost (INR)', 'Net Profit (INR)', 'Expense Notes'];
+    const headers = ['Date', 'Doc Type', 'Bill No', 'Customer Name', 'Turbos & Work Done', 'Billed Amount (INR)', 'Our Actual Cost (INR)', 'Net Profit (INR)', 'Status', 'Expense Notes'];
     const rows = [headers];
 
     ledger.forEach(entry => {
+      const isEst = Boolean(entry.isEstimation || entry.billType === 'estimation');
       const itemsText = (entry.items || []).map(i => i.name).join('; ');
       const billed = parseFloat(entry.billedAmount) || 0;
       const cost = parseFloat(entry.actualCost) || 0;
@@ -1137,12 +1396,14 @@
 
       rows.push([
         toDDMMYYYY(entry.date),
-        entry.invoiceNo || '',
+        isEst ? 'Estimation Quote' : 'Cash Bill',
+        entry.invoiceNo || (isEst ? 'ESTIMATE' : ''),
         `"${(entry.customerName || '').replace(/"/g, '""')}"`,
         `"${itemsText.replace(/"/g, '""')}"`,
         billed,
         cost,
         profit,
+        isEst ? 'Blocked' : 'Confirmed',
         `"${(entry.notes || '').replace(/"/g, '""')}"`
       ]);
     });
@@ -1248,10 +1509,11 @@
 
   function newInvoice(preserveNo = false) {
     state.editingLedgerId = null; // Clear edit mode
+    setBillType('cash', true);
     state.invoiceDate = todayStr();
     state.customerName = '';
     state.customerAddress = '';
-    state.items = [{ id: uid(), turboName: '', modelNo: '', partNo: '', serialNo: '', workDone: '', cost: '' }];
+    state.items = [{ id: uid(), turboName: '', modelNo: '', partNo: '', serialNo: '', workDone: '', cost: '', discount: '' }];
 
     if (!preserveNo) {
       const ledger = getLedger();
@@ -1273,6 +1535,7 @@
 
   function startNextBill() {
     state.editingLedgerId = null; // Clear edit mode
+    setBillType('cash', true);
     const nextNo = computeNextInvoiceNo(getLedger());
     state.invoiceNo = nextNo;
     localStorage.setItem(STORAGE.NEXT_INV_NO, state.invoiceNo);
@@ -1729,6 +1992,10 @@
     // Save Bill Action
     $('saveBillBtn').addEventListener('click', handleSaveBill);
 
+    // Document Type Selector (Cash Bill vs Estimation Bill)
+    if ($('btnTypeCashBill')) $('btnTypeCashBill').addEventListener('click', () => setBillType('cash'));
+    if ($('btnTypeEstimation')) $('btnTypeEstimation').addEventListener('click', () => setBillType('estimation'));
+
     // Cash Bill Form Inputs (Any change triggers unsaved state)
     $('invoiceNoInput').addEventListener('input', e => {
       state.invoiceNo = e.target.value;
@@ -1783,6 +2050,7 @@
       renderFinanceLedger();
     });
 
+    if ($('financeStatusFilter')) $('financeStatusFilter').addEventListener('change', () => renderFinanceLedger());
     $('financeMonthFilter').addEventListener('change', () => renderFinanceLedger());
     $('financeYearFilter').addEventListener('change', () => renderFinanceLedger());
     $('exportCsvBtn').addEventListener('click', exportLedgerToCsv);

@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>M.K. Turbo - Cash Bill &amp; Finance Suite</title>
-  <link rel="stylesheet" href="style.css?v=3.9">
+  <link rel="stylesheet" href="style.css?v=4.0">
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#004b93">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -106,6 +106,22 @@
        ============================================================== -->
   <main class="main-wrap app-view" id="viewInvoice">
     <div class="entry-card">
+
+      <!-- Document Type Selector: Cash Bill vs. Estimation Bill -->
+      <div class="doc-type-selector-wrap mb-3">
+        <label class="field-lbl">Document Type</label>
+        <div class="doc-type-pills">
+          <button type="button" class="btn-doc-type active" id="btnTypeCashBill">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+            <span>Cash Bill</span>
+          </button>
+          <button type="button" class="btn-doc-type" id="btnTypeEstimation">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>
+            <span>Estimation Bill</span>
+          </button>
+        </div>
+        <p class="doc-type-hint" id="docTypeHint">Official serial bill with tax/profit tracking &bull; Added to Finance Book</p>
+      </div>
 
       <!-- Row 1: Bill No + Date -->
       <div class="two-col">
@@ -278,6 +294,11 @@
           <span class="stat-val" id="statTotalProfit">&#8377; 0</span>
           <span class="stat-sub" id="statProfitMargin">Margin: 0%</span>
         </div>
+        <div class="stat-card stat-estimates" id="statCardEstimates" style="display: none;">
+          <span class="stat-lbl">Blocked (Estimates)</span>
+          <span class="stat-val" id="statBlockedSales">&#8377; 0</span>
+          <span class="stat-sub" id="statBlockedCount">0 pending quotes</span>
+        </div>
       </div>
 
       <!-- Filters & Search Toolbar -->
@@ -286,6 +307,11 @@
           <input type="text" id="financeSearchInput" class="inp" placeholder="&#128269; Search Turbo, part #, model, customer, bill #...">
         </div>
         <div class="filter-dropdowns">
+          <select id="financeStatusFilter" class="inp select-inp">
+            <option value="ALL">All Documents</option>
+            <option value="cash">Cash Bills Only</option>
+            <option value="estimation">Estimates Only</option>
+          </select>
           <select id="financeMonthFilter" class="inp select-inp">
             <option value="ALL">All Months</option>
           </select>
@@ -440,7 +466,7 @@
             <div class="inv-prop">Y. Srinivasa Rao, Proprietor</div>
           </div>
           <div class="inv-h-center">
-            <div class="inv-title-word">CASH BILL</div>
+            <div class="inv-title-word" id="pDocTitle">CASH BILL</div>
           </div>
           <div class="inv-h-right">
             <div class="inv-orig-line">Original for RECIPIENT</div>
@@ -578,9 +604,34 @@
             <div class="inv-words-val" id="pAmountWords">Zero Rupees Only</div>
           </div>
           <div class="inv-total-col">
-            <div class="inv-total-lbl">Total amount:</div>
-            <div class="inv-total-num" id="pTotalAmount">&#8377; 0.00</div>
+            <div class="inv-breakdown-rows" id="pBreakdownRows" style="display: none;">
+              <div class="inv-sub-line">
+                <span class="inv-sub-lbl">Subtotal:</span>
+                <span class="inv-sub-val" id="pSubtotalAmount">&#8377; 0.00</span>
+              </div>
+              <div class="inv-disc-line">
+                <span class="inv-disc-lbl">Total Discount:</span>
+                <span class="inv-disc-val" id="pDiscountTotal">-&#8377; 0.00</span>
+              </div>
+            </div>
+            <div class="inv-final-total-line">
+              <span class="inv-total-lbl">Total amount:</span>
+              <span class="inv-total-num" id="pTotalAmount">&#8377; 0.00</span>
+            </div>
           </div>
+        </div>
+
+        <!-- ── ROW 6.5: Important Precautions Before Fitting ── -->
+        <div class="inv-precautions-band">
+          <div class="inv-precautions-head">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#004b93" stroke-width="2.6"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <span>IMPORTANT PRECAUTIONS BEFORE FITTING TURBOCHARGER:</span>
+          </div>
+          <ol class="inv-precautions-list">
+            <li><strong>Engine Oil &amp; Filters:</strong> Replace engine oil, oil filter, and air filter with recommended grade before fitting.</li>
+            <li><strong>Exhaust &amp; Breather:</strong> Thoroughly clean the silencer/exhaust line, intercooler, and crankcase breather filter.</li>
+            <li><strong>Oil Pressure &amp; Priming:</strong> Check and verify engine oil pressure to the turbocharger feed line; pre-lube the turbo oil inlet with clean engine oil before starting.</li>
+          </ol>
         </div>
 
         <!-- ── ROW 7: Footer Band ── -->
@@ -715,6 +766,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=3.9"></script>
+  <script src="app.js?v=4.0"></script>
 </body>
 </html>
