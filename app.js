@@ -259,11 +259,11 @@
 
   function lockFinanceNotebook() {
     sessionStorage.removeItem(STORAGE.PIN_UNLOCKED);
-    switchView('invoice');
+    switchView('workspace');
     toast('🔒 Finance Notebook Locked');
   }
 
-  /* ── 2-in-1 App View Navigation ───────────── */
+  /* ── Workspace Apps & View Navigation ───────────── */
   function switchView(viewName) {
     if (viewName === 'finance' && !isFinanceUnlocked()) {
       promptFinancePin();
@@ -273,14 +273,19 @@
     state.activeView = viewName;
     localStorage.setItem(STORAGE.LAST_VIEW, viewName);
 
+    const isWorkspace = viewName === 'workspace';
     const isInvoice = viewName === 'invoice';
-    $('viewInvoice').style.display = isInvoice ? 'block' : 'none';
-    $('viewFinance').style.display = isInvoice ? 'none' : 'block';
+    const isFinance = viewName === 'finance';
 
-    $('tabInvoiceBtn').classList.toggle('active', isInvoice);
-    $('tabFinanceBtn').classList.toggle('active', !isInvoice);
+    if ($('viewWorkspace')) $('viewWorkspace').style.display = isWorkspace ? 'block' : 'none';
+    if ($('viewInvoice')) $('viewInvoice').style.display = isInvoice ? 'block' : 'none';
+    if ($('viewFinance')) $('viewFinance').style.display = isFinance ? 'block' : 'none';
 
-    if (!isInvoice) {
+    if ($('tabWorkspaceBtn')) $('tabWorkspaceBtn').classList.toggle('active', isWorkspace);
+    if ($('tabInvoiceBtn')) $('tabInvoiceBtn').classList.toggle('active', isInvoice);
+    if ($('tabFinanceBtn')) $('tabFinanceBtn').classList.toggle('active', isFinance);
+
+    if (isFinance) {
       renderFinanceLedger();
     }
   }
@@ -539,10 +544,13 @@
     const saved = syncInvoiceToFinanceBook();
     lastSavedRecord = saved;
 
-    // 2. Clear form so it is fresh, blank and incremented to next bill number!
+    // 2. Clear form so it is fresh, blank for the next job
     newInvoice(false);
 
-    // 3. Open Success Modal with Download, Share, Print, and Cross button!
+    // 3. Immediately exit Bill Generator back to Workspace Hub!
+    switchView('workspace');
+
+    // 4. Open Success Modal with Download, Share, Print, and Cross button!
     openSaveSuccessModal(saved, wasEditing);
 
     if (isEstimate) {
@@ -880,12 +888,12 @@
         if (!state.editingLedgerId) newInvoice(false);
       } else {
         document.title = filename.replace('.pdf', '');
-        window.print();
+        if (typeof window.print === 'function') window.print();
       }
     } catch (err) {
       console.error(err);
       document.title = filename.replace('.pdf', '');
-      window.print();
+      if (typeof window.print === 'function') window.print();
     } finally {
       btn.disabled = false;
       btn.innerHTML = origHTML;
@@ -932,7 +940,7 @@
           toast(`Downloaded ${filename} for sharing!`);
         }
       } else {
-        window.print();
+        if (typeof window.print === 'function') window.print();
       }
     } catch (err) {
       if (err.name !== 'AbortError') {
@@ -951,7 +959,7 @@
       return;
     }
     document.title = pdfFilename().replace('.pdf', '');
-    window.print();
+    if (typeof window.print === 'function') window.print();
   }
 
   /* ── Convert Estimation to Cash Bill ─────────── */
@@ -1425,9 +1433,121 @@
     toast(isEst ? '✏️ Editing Estimation Quote' : `✏️ Editing Cash Bill #${state.invoiceNo} (updates in-place)`);
   }
 
+  /* ── Render Print Sheet Directly from Entry (Without altering active editor state) ── */
+  function renderPrintSheetFromEntry(entry) {
+    if (!entry) return;
+    const isEst = Boolean(entry.isEstimation || entry.billType === 'estimation');
+
+    if ($('pDocTitle')) $('pDocTitle').textContent = isEst ? 'ESTIMATION' : 'CASH BILL';
+    if ($('pInvoiceNoLbl')) $('pInvoiceNoLbl').textContent = isEst ? 'Estimate' : 'Bill No.';
+    if ($('pInvoiceNo')) {
+      $('pInvoiceNo').textContent = isEst ? 'ESTIMATE' : (entry.invoiceNo || '---');
+      $('pInvoiceNo').className = isEst ? 'inv-no-stamp inv-stamp-estimate' : 'inv-no-stamp';
+    }
+    if ($('pInvoiceDate')) $('pInvoiceDate').textContent = toDDMMYYYY(entry.date);
+    if ($('pCustomerName')) $('pCustomerName').textContent = entry.customerName || '';
+    if ($('pConsigneeName')) $('pConsigneeName').textContent = entry.customerName || '';
+    if ($('pCustomerAddress')) $('pCustomerAddress').textContent = entry.customerAddress || '';
+    if ($('pConsigneeAddress')) $('pConsigneeAddress').textContent = entry.customerAddress || '';
+
+    const tbody = $('pItemsBody');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+
+    const rawItems = entry.rawItems && entry.rawItems.length > 0 ? entry.rawItems : (entry.items || []);
+    let subtotal = 0;
+    let totalDiscount = 0;
+    let total = 0;
+    let usedRows = 0;
+
+    rawItems.forEach(item => {
+      const isRaw = Boolean(item.turboName !== undefined);
+      const turboName = isRaw ? (item.turboName || '') : (item.name || '');
+      const modelNo = isRaw ? (item.modelNo || '') : '';
+      const partNo = isRaw ? (item.partNo || '') : '';
+      const serialNo = isRaw ? (item.serialNo || '') : '';
+      const workDone = isRaw ? (item.workDone || '') : '';
+      const cost = parseFloat(isRaw ? item.cost : (item.originalPrice || item.cost)) || 0;
+      const discount = parseFloat(item.discount) || 0;
+      const net = Math.max(0, cost - discount);
+
+      subtotal += cost;
+      totalDiscount += discount;
+      total += net;
+      usedRows++;
+
+      let nameHtml = '';
+      if (turboName) {
+        nameHtml += `<div class="inv-turbo-title"><strong>${esc(turboName)}</strong></div>`;
+      }
+
+      const metaBadges = [];
+      if (modelNo) metaBadges.push(`<span>Mdl:</span> <strong>${esc(modelNo)}</strong>`);
+      if (partNo) metaBadges.push(`<span>Part:</span> <strong>${esc(partNo)}</strong>`);
+      if (serialNo) metaBadges.push(`<span>S/N:</span> <strong>${esc(serialNo)}</strong>`);
+
+      if (metaBadges.length > 0) {
+        nameHtml += `<div class="inv-turbo-meta">${metaBadges.join(' &nbsp;|&nbsp; ')}</div>`;
+      }
+
+      if (workDone) {
+        nameHtml += `<div class="inv-turbo-work">${esc(workDone)}</div>`;
+      }
+
+      if (discount > 0) {
+        nameHtml += `<div class="inv-turbo-disc">Less Discount: -\u20B9 ${discount.toLocaleString('en-IN')}</div>`;
+      }
+
+      if (!nameHtml) {
+        nameHtml = `<div class="inv-turbo-work">---</div>`;
+      }
+
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td class="col-sno"><span class="sno-circle">${usedRows}</span></td>
+        <td class="col-name"><div class="item-name-cell">${nameHtml}</div></td>
+        <td class="col-hsn"></td>
+        <td class="col-qty"></td>
+        <td class="col-unit"></td>
+        <td class="col-rate">${cost > 0 ? cost.toLocaleString('en-IN') : ''}</td>
+        <td class="col-amt">${net > 0 ? net.toLocaleString('en-IN') : (cost > 0 ? '0' : '')}</td>`;
+      tbody.appendChild(tr);
+    });
+
+    if (usedRows === 0) {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td class="col-sno"><span class="sno-circle">1</span></td>
+        <td class="col-name">&nbsp;</td>
+        <td class="col-hsn">&nbsp;</td>
+        <td class="col-qty">&nbsp;</td>
+        <td class="col-unit">&nbsp;</td>
+        <td class="col-rate">&nbsp;</td>
+        <td class="col-amt">&nbsp;</td>`;
+      tbody.appendChild(tr);
+    }
+
+    const bdown = $('pBreakdownRows');
+    if (bdown) {
+      if (totalDiscount > 0) {
+        bdown.style.display = 'flex';
+        if ($('pSubtotalAmount')) $('pSubtotalAmount').textContent = formatINR(subtotal);
+        if ($('pDiscountTotal')) $('pDiscountTotal').textContent = '-' + formatINR(totalDiscount);
+      } else {
+        bdown.style.display = 'none';
+      }
+    }
+
+    const words = toWords(total || entry.billedAmount || 0);
+    const fmtTotal = formatINR(total || entry.billedAmount || 0);
+    if ($('pAmountWords')) $('pAmountWords').textContent = words;
+    if ($('pTotalAmount')) $('pTotalAmount').textContent = fmtTotal;
+  }
+
   /* ── Direct PDF Download from Ledger ──────── */
   async function downloadBillFromLedger(entry) {
-    loadBillForEditing(entry);
+    if (!entry) return;
+    renderPrintSheetFromEntry(entry);
 
     const filename = pdfFilename(entry.invoiceNo);
     toast(`Generating ${filename}...`, 1800);
@@ -1447,28 +1567,28 @@
         toast(`Downloaded ${filename}!`);
       } else {
         document.title = filename.replace('.pdf', '');
-        window.print();
+        if (typeof window.print === 'function') window.print();
       }
     } catch (err) {
       console.error(err);
       toast('Print dialog opened');
-      window.print();
+      if (typeof window.print === 'function') window.print();
     }
   }
 
   /* ── Direct PDF Print from Ledger / Modal ── */
   function printBillFromLedger(entry) {
     if (!entry) return;
-    loadBillForEditing(entry);
+    renderPrintSheetFromEntry(entry);
     const filename = pdfFilename(entry.invoiceNo);
     document.title = filename.replace('.pdf', '');
-    window.print();
-    newInvoice(false);
+    if (typeof window.print === 'function') window.print();
   }
 
   /* ── Direct PDF Share from Ledger ─────────── */
   async function shareBillFromLedger(entry) {
-    loadBillForEditing(entry);
+    if (!entry) return;
+    renderPrintSheetFromEntry(entry);
 
     const isEst = Boolean(entry.isEstimation || entry.billType === 'estimation');
     const filename = pdfFilename(entry.invoiceNo);
@@ -1497,13 +1617,12 @@
               : `M.K. Turbo Cash Bill #${entry.invoiceNo} for ${entry.customerName || 'Customer'}`
           });
           toast('Shared successfully!');
-          if (!state.editingLedgerId) newInvoice(false);
         } else {
           await html2pdf().set(opt).from(sheet).save();
           toast(`Downloaded ${filename} for sharing!`);
         }
       } else {
-        window.print();
+        if (typeof window.print === 'function') window.print();
       }
     } catch (err) {
       if (err.name !== 'AbortError') {
@@ -2152,9 +2271,19 @@
 
   /* ── Initialize Event Listeners ───────────── */
   function initEvents() {
-    // 2-in-1 Tabs
-    $('tabInvoiceBtn').addEventListener('click', () => switchView('invoice'));
-    $('tabFinanceBtn').addEventListener('click', () => switchView('finance'));
+    // Workspace Navigation Tabs
+    if ($('tabWorkspaceBtn')) $('tabWorkspaceBtn').addEventListener('click', () => switchView('workspace'));
+    if ($('tabInvoiceBtn')) $('tabInvoiceBtn').addEventListener('click', () => switchView('invoice'));
+    if ($('tabFinanceBtn')) $('tabFinanceBtn').addEventListener('click', () => switchView('finance'));
+    if ($('appBrandClickable')) $('appBrandClickable').addEventListener('click', () => switchView('workspace'));
+
+    // Workspace App Cards (Canva / Paytm style)
+    if ($('openBillGeneratorCard')) $('openBillGeneratorCard').addEventListener('click', () => switchView('invoice'));
+    if ($('openFinanceNotebookCard')) $('openFinanceNotebookCard').addEventListener('click', () => switchView('finance'));
+
+    // Back to Hub Buttons
+    if ($('backToHubFromInvoice')) $('backToHubFromInvoice').addEventListener('click', () => switchView('workspace'));
+    if ($('backToHubFromFinance')) $('backToHubFromFinance').addEventListener('click', () => switchView('workspace'));
 
     // PWA & Cloud Hub
     if ($('closeIosInstallBtn')) $('closeIosInstallBtn').addEventListener('click', () => $('installIosModal').classList.remove('open'));
@@ -2422,11 +2551,8 @@
     pullSyncFromCloud();
     startRealtimeCloudListener();
 
-    if (state.activeView === 'finance' && !isFinanceUnlocked()) {
-      switchView('invoice');
-    } else {
-      switchView(state.activeView);
-    }
+    const startView = (state.activeView === 'finance' && isFinanceUnlocked()) ? 'finance' : 'workspace';
+    switchView(startView);
   }
 
   document.readyState === 'loading'
