@@ -330,23 +330,34 @@ body {
   position: absolute;
   top: -99999px;
   left: -99999px;
-  width: 210mm;
+  width: 200mm;
+  box-sizing: border-box;
 }
 
 .inv-sheet {
-  width: 210mm;
+  width: 200mm;
+  max-width: 200mm;
   background: #fff;
-  padding: 6mm;
+  padding: 4mm;
   font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   color: #0f172a;
   box-sizing: border-box;
+  margin: 0 auto;
+}
+
+.inv-sheet,
+.inv-sheet * {
+  box-sizing: border-box !important;
 }
 
 .inv-outer {
   border: 2px solid #004b93;
   width: 100%;
+  max-width: 100%;
   display: flex;
   flex-direction: column;
+  box-sizing: border-box;
+  background: #fff;
 }
 
 /* ── Header Bar ─────────────────────────── */

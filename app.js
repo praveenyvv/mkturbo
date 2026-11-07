@@ -109,7 +109,7 @@
   const $ = id => document.getElementById(id);
 
   /* ── Save Mechanism State Management ──────── */
-  function setSavedState(isSaved) {
+  function setSavedState(isSaved, nextNo = '') {
     state.isSaved = isSaved;
 
     const dlBtn = $('downloadPdfBtn');
@@ -124,13 +124,19 @@
     if (dlBtn) dlBtn.disabled = !isSaved;
     if (shareBtn) shareBtn.disabled = !isSaved;
     if (printBtn) printBtn.disabled = !isSaved;
-    if (nextBtn) nextBtn.style.display = isSaved ? 'flex' : 'none';
+    if (nextBtn) {
+      nextBtn.style.display = isSaved ? 'flex' : 'none';
+      if (nextNo) {
+        nextBtn.innerHTML = `<span>+ Start Next Bill (#${nextNo})</span>`;
+      }
+    }
 
     if (isSaved) {
       if (saveBtn) saveBtn.className = 'btn-save-bill saved';
       if (saveBtnText) saveBtnText.textContent = '✅ Bill Saved in Notebook';
       if (banner) banner.className = 'save-status-banner saved';
-      if (bannerText) bannerText.textContent = `Bill #${state.invoiceNo || '---'} saved! Download & Share are enabled.`;
+      const nStr = nextNo ? ` (Next: #${nextNo})` : '';
+      if (bannerText) bannerText.textContent = `Bill #${state.invoiceNo || '---'} saved!${nStr} Download & Share are enabled.`;
     } else {
       if (saveBtn) saveBtn.className = 'btn-save-bill unsaved';
       if (saveBtnText) saveBtnText.textContent = '💾 Save Bill to Notebook';
@@ -297,6 +303,8 @@
     }
 
     saveLedger(ledger);
+    const nextNo = computeNextInvoiceNo(ledger);
+    localStorage.setItem(STORAGE.NEXT_INV_NO, nextNo);
     pushSyncToCloud('bill_save');
   }
 
@@ -316,8 +324,9 @@
     }
 
     syncInvoiceToFinanceBook();
-    setSavedState(true);
-    toast(`✅ Cash Bill #${state.invoiceNo} saved & synced!`);
+    const nextNo = computeNextInvoiceNo(getLedger());
+    setSavedState(true, nextNo);
+    toast(`✅ Cash Bill #${state.invoiceNo} saved! Next: #${nextNo}`);
   }
 
   /* ── Render Product Rows (Expanded Turbo Fields) ───── */
@@ -523,6 +532,20 @@
     $('summaryAmountWords').textContent = words;
   }
 
+  /* ── Compute Next Available Bill Number ────── */
+  function computeNextInvoiceNo(ledger) {
+    let maxNo = 132;
+    (ledger || []).forEach(e => {
+      if (!e) return;
+      const clean = String(e.invoiceNo || '').replace(/\D/g, '');
+      const num = parseInt(clean, 10);
+      if (!isNaN(num) && num > maxNo) {
+        maxNo = num;
+      }
+    });
+    return String(maxNo + 1);
+  }
+
   /* ── Increment Bill Number ─────────────── */
   function incNo() {
     const s = String(state.invoiceNo || '0').trim();
@@ -559,7 +582,7 @@
       margin: [5, 5, 5, 5],
       filename,
       image: { type: 'jpeg', quality: 0.98 },
-      html2canvas: { scale: 2, useCORS: true, letterRendering: true, scrollY: 0 },
+      html2canvas: { scale: 2, useCORS: true, letterRendering: true, scrollY: 0, windowWidth: 794 },
       jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
     };
 
@@ -600,7 +623,7 @@
       margin: [5, 5, 5, 5],
       filename,
       image: { type: 'jpeg', quality: 0.98 },
-      html2canvas: { scale: 2, useCORS: true, letterRendering: true, scrollY: 0 },
+      html2canvas: { scale: 2, useCORS: true, letterRendering: true, scrollY: 0, windowWidth: 794 },
       jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
     };
 
@@ -737,8 +760,28 @@
     const margin = totalSales > 0 ? Math.round((totalProfit / totalSales) * 100) : 0;
     $('statProfitMargin').textContent = `Profit Margin: ${margin}%`;
 
-    // Render Ledger Cards
+    // Remember active focus & selection if user is typing
     const container = $('financeLedgerList');
+    const active = document.activeElement;
+    let focusedCardId = null;
+    let focusedField = null;
+    let selStart = 0;
+    let selEnd = 0;
+
+    if (active && container && container.contains(active)) {
+      const parentCard = active.closest('.ledger-card');
+      if (parentCard) {
+        focusedCardId = parentCard.dataset.id;
+        if (active.classList.contains('notes-input')) focusedField = 'notes';
+        else if (active.classList.contains('calc-cost-input')) focusedField = 'cost';
+        try {
+          selStart = active.selectionStart;
+          selEnd = active.selectionEnd;
+        } catch (e) {}
+      }
+    }
+
+    // Render Ledger Cards
     container.innerHTML = '';
 
     if (filtered.length === 0) {
@@ -850,12 +893,32 @@
         clearTimeout(costDebounceTimer);
         costDebounceTimer = setTimeout(() => {
           pushSyncToCloud('cost_update');
-        }, 1200);
+        }, 1000);
       });
 
+      costInput.addEventListener('blur', () => {
+        if (state.finance.needsRefreshOnBlur) {
+          state.finance.needsRefreshOnBlur = false;
+          renderFinanceLedger();
+        }
+      });
+
+      let notesDebounceTimer = null;
       notesInput.addEventListener('input', e => {
         entry.notes = e.target.value;
         saveLedger(ledger);
+        clearTimeout(notesDebounceTimer);
+        notesDebounceTimer = setTimeout(() => {
+          pushSyncToCloud('notes_update');
+        }, 1000);
+      });
+
+      notesInput.addEventListener('blur', () => {
+        pushSyncToCloud('notes_blur');
+        if (state.finance.needsRefreshOnBlur) {
+          state.finance.needsRefreshOnBlur = false;
+          renderFinanceLedger();
+        }
       });
 
       editBtn.addEventListener('click', () => {
@@ -872,6 +935,22 @@
 
       container.appendChild(card);
     });
+
+    // Restore user cursor and focus so typing is never interrupted
+    if (focusedCardId && focusedField) {
+      const restoredCard = container.querySelector(`.ledger-card[data-id="${focusedCardId}"]`);
+      if (restoredCard) {
+        const targetInp = focusedField === 'notes'
+          ? restoredCard.querySelector('.notes-input')
+          : restoredCard.querySelector('.calc-cost-input');
+        if (targetInp) {
+          targetInp.focus();
+          try {
+            if (targetInp.setSelectionRange) targetInp.setSelectionRange(selStart, selEnd);
+          } catch (e) {}
+        }
+      }
+    }
   }
 
   function updateFinanceStats(entries) {
@@ -948,7 +1027,7 @@
       margin: [5, 5, 5, 5],
       filename,
       image: { type: 'jpeg', quality: 0.98 },
-      html2canvas: { scale: 2, useCORS: true, letterRendering: true, scrollY: 0 },
+      html2canvas: { scale: 2, useCORS: true, letterRendering: true, scrollY: 0, windowWidth: 794 },
       jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
     };
 
@@ -1124,12 +1203,23 @@
     toast('Loaded sample cash bill #133 (Tap "Save Bill" to save & enable download)');
   }
 
-  function newInvoice() {
+  function newInvoice(preserveNo = false) {
     state.invoiceDate = todayStr();
     state.customerName = '';
     state.customerAddress = '';
     state.items = [{ id: uid(), turboName: '', modelNo: '', partNo: '', serialNo: '', workDone: '', cost: '' }];
+
+    if (!preserveNo) {
+      const ledger = getLedger();
+      const currentNo = String(state.invoiceNo || '').trim();
+      if (ledger.some(e => String(e.invoiceNo).trim() === currentNo)) {
+        state.invoiceNo = computeNextInvoiceNo(ledger);
+        localStorage.setItem(STORAGE.NEXT_INV_NO, state.invoiceNo);
+      }
+    }
+
     $('invoiceDateInput').value = state.invoiceDate;
+    if ($('invoiceNoInput')) $('invoiceNoInput').value = state.invoiceNo;
     $('customerNameInput').value = '';
     $('customerAddressInput').value = '';
     renderRows(); sync();
@@ -1138,8 +1228,12 @@
   }
 
   function startNextBill() {
-    incNo();
-    newInvoice();
+    const nextNo = computeNextInvoiceNo(getLedger());
+    state.invoiceNo = nextNo;
+    localStorage.setItem(STORAGE.NEXT_INV_NO, state.invoiceNo);
+    if ($('invoiceNoInput')) $('invoiceNoInput').value = state.invoiceNo;
+    newInvoice(true);
+    toast(`Ready for next job: Cash Bill #${state.invoiceNo}`);
   }
 
   /* ── CLOUD SYNC & BACKUP ENGINE (BULLETPROOF REAL-TIME) ── */
@@ -1192,7 +1286,7 @@
     const ledger = getLedger();
     const payload = {
       syncCode: getSyncCode(),
-      nextInvoiceNo: String(state.invoiceNo || '133'),
+      nextInvoiceNo: computeNextInvoiceNo(ledger),
       ledger: ledger,
       version: Date.now(),
       updatedAt: new Date().toISOString(),
@@ -1304,29 +1398,72 @@
     }
   }
 
+  function isUserActivelyTypingInLedger() {
+    const active = document.activeElement;
+    if (!active) return false;
+    const container = $('financeLedgerList');
+    return Boolean(container && container.contains(active) &&
+      (active.classList.contains('notes-input') || active.classList.contains('calc-cost-input')));
+  }
+
   function mergeRemoteData(remote) {
+    if (!remote || !Array.isArray(remote.ledger)) return;
     const localLedger = getLedger();
     const remoteLedger = remote.ledger || [];
 
     const map = new Map();
     // Start with local
-    localLedger.forEach(item => map.set(item.id, item));
-    // Overwrite with remote
-    remoteLedger.forEach(item => {
-      map.set(item.id, item);
+    localLedger.forEach(item => {
+      if (item && item.id) map.set(item.id, item);
     });
+    // Merge with remote
+    remoteLedger.forEach(item => {
+      if (item && item.id) {
+        const existingLocal = map.get(item.id);
+        // If local has notes and remote is empty, preserve local notes
+        if (existingLocal && existingLocal.notes && !item.notes) {
+          item.notes = existingLocal.notes;
+        }
+        map.set(item.id, item);
+      }
+    });
+
+    // If user is actively typing in a card, do NOT let remote overwrite that card's cost or notes
+    if (isUserActivelyTypingInLedger()) {
+      const active = document.activeElement;
+      const card = active ? active.closest('.ledger-card') : null;
+      if (card && card.dataset.id) {
+        const editingId = card.dataset.id;
+        const localItem = localLedger.find(i => i.id === editingId);
+        if (localItem) map.set(editingId, localItem);
+      }
+    }
 
     const merged = Array.from(map.values()).sort((a, b) => new Date(b.date || b.createdAt) - new Date(a.date || a.createdAt));
     localStorage.setItem(STORAGE.FINANCE_LEDGER, JSON.stringify(merged));
 
-    if (remote.nextInvoiceNo && parseInt(remote.nextInvoiceNo, 10) >= parseInt(state.invoiceNo || '0', 10)) {
-      state.invoiceNo = remote.nextInvoiceNo;
-      localStorage.setItem(STORAGE.NEXT_INV_NO, state.invoiceNo);
+    // Next Invoice Number
+    const nextNoFromLedger = computeNextInvoiceNo(merged);
+    const remoteNext = parseInt(remote.nextInvoiceNo || '0', 10);
+    const computedNext = parseInt(nextNoFromLedger, 10);
+    const bestNext = String(Math.max(remoteNext, computedNext));
+
+    localStorage.setItem(STORAGE.NEXT_INV_NO, bestNext);
+
+    // Auto-advance if the current invoiceNo in form has already been saved in the ledger
+    const isCurrentInLedger = merged.some(e => String(e.invoiceNo).trim() === String(state.invoiceNo).trim());
+    if (isCurrentInLedger) {
+      state.invoiceNo = bestNext;
       if ($('invoiceNoInput')) $('invoiceNoInput').value = state.invoiceNo;
       sync();
     }
 
-    renderFinanceLedger();
+    // Only render if user is not actively typing, otherwise defer to blur
+    if (isUserActivelyTypingInLedger()) {
+      state.finance.needsRefreshOnBlur = true;
+    } else {
+      renderFinanceLedger();
+    }
   }
 
   function saveVersionSnapshot(payload) {
@@ -1628,6 +1765,11 @@
 
   /* ── Bootstrap ───────────────────────────── */
   function init() {
+    const ledger = getLedger();
+    if (ledger.some(e => String(e.invoiceNo).trim() === String(state.invoiceNo).trim())) {
+      state.invoiceNo = computeNextInvoiceNo(ledger);
+      localStorage.setItem(STORAGE.NEXT_INV_NO, state.invoiceNo);
+    }
     $('invoiceNoInput').value = state.invoiceNo;
     $('invoiceDateInput').value = state.invoiceDate;
     renderRows();
