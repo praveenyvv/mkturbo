@@ -124,50 +124,17 @@
   const $ = id => document.getElementById(id);
 
   /* ── Save Mechanism State Management ──────── */
-  function setSavedState(isSaved, nextNo = '') {
+  function setSavedState(isSaved) {
     state.isSaved = isSaved;
-
-    const dlBtn = $('downloadPdfBtn');
-    const shareBtn = $('sharePdfBtn');
-    const printBtn = $('printBtn');
-    const saveBtn = $('saveBillBtn');
-    const saveBtnText = $('saveBillBtnText');
-    const banner = $('saveStatusBanner');
-    const bannerText = $('saveStatusText');
-    const nextBtn = $('startNextBillBtn');
-
-    if (dlBtn) dlBtn.disabled = !isSaved;
-    if (shareBtn) shareBtn.disabled = !isSaved;
-    if (printBtn) printBtn.disabled = !isSaved;
-
     const isEdit = Boolean(state.editingLedgerId);
     const isEstimate = state.billType === 'estimation';
     const docLabel = isEstimate ? 'Estimate' : 'Bill';
 
-    if (nextBtn) {
-      nextBtn.style.display = isSaved ? 'flex' : 'none';
-      if (nextNo && !isEstimate) {
-        nextBtn.innerHTML = `<span>+ Start Next Bill (#${nextNo})</span>`;
-      } else {
-        nextBtn.innerHTML = `<span>+ Start Fresh Document</span>`;
-      }
-    }
-
-    if (isSaved) {
-      if (saveBtn) saveBtn.className = 'btn-save-bill saved';
-      if (saveBtnText) saveBtnText.textContent = isEdit ? `${docLabel} Updated in Notebook` : `${docLabel} Saved in Notebook`;
-      if (banner) banner.className = 'save-status-banner saved';
-      const nStr = (!isEdit && nextNo && !isEstimate) ? ` (Next: #${nextNo})` : '';
-      if (bannerText) bannerText.textContent = isEdit
-        ? `${docLabel} ${isEstimate ? '' : '#' + (state.invoiceNo || '---')} updated in Notebook! Download & Share are enabled.`
-        : `${docLabel} ${isEstimate ? '' : '#' + (state.invoiceNo || '---')} saved!${nStr} Download & Share are enabled.`;
-    } else {
-      if (saveBtn) saveBtn.className = 'btn-save-bill unsaved';
-      if (saveBtnText) saveBtnText.textContent = isEdit ? `Update ${docLabel} in Notebook` : `Save ${docLabel} to Notebook`;
-      if (banner) banner.className = 'save-status-banner unsaved';
-      if (bannerText) bannerText.textContent = isEdit
-        ? `Editing ${docLabel} ${isEstimate ? '' : '#' + state.invoiceNo} - Tap "Update ${docLabel} in Notebook" to save changes.`
-        : `Please save ${docLabel.toLowerCase()} to enable Download and Share`;
+    const saveBtn = $('saveBillBtn');
+    const saveBtnText = $('saveBillBtnText');
+    if (saveBtn) saveBtn.className = isSaved ? 'btn-save-bill saved' : 'btn-save-bill unsaved';
+    if (saveBtnText) {
+      saveBtnText.textContent = isEdit ? `Update ${docLabel} in Notebook` : `Save ${docLabel} to Notebook`;
     }
   }
 
@@ -223,8 +190,7 @@
       if (nextBtn) nextBtn.style.display = 'inline-flex';
     }
 
-    if ($('dlBtnFilename')) $('dlBtnFilename').textContent = pdfFilename();
-    setSavedState(state.isSaved);
+        setSavedState(state.isSaved);
     sync();
 
     if (!silent) {
@@ -290,8 +256,6 @@
 
     $('tabInvoiceBtn').classList.toggle('active', isInvoice);
     $('tabFinanceBtn').classList.toggle('active', !isInvoice);
-
-    if ($('invoiceBarActions')) $('invoiceBarActions').style.display = isInvoice ? 'flex' : 'none';
 
     if (!isInvoice) {
       renderFinanceLedger();
@@ -695,9 +659,7 @@
   /* ── Build Hidden Printable PDF Cash Bill ───── */
   function sync() {
     const filename = pdfFilename();
-    $('dlBtnFilename').textContent = filename;
-
-    const isEst = state.billType === 'estimation';
+        const isEst = state.billType === 'estimation';
 
     // Header & Meta
     if ($('pDocTitle')) $('pDocTitle').textContent = isEst ? 'ESTIMATION' : 'CASH BILL';
@@ -1714,9 +1676,6 @@
   }
 
   function setSyncStatus(status, timeStr = '') {
-    const btn = $('cloudSyncBtn');
-    const dot = $('syncStatusDot');
-    const label = $('syncStatusText');
     const miniDot = $('headerSyncDotMini');
     const dDot = $('drawerSyncDot');
     const dText = $('drawerSyncStatusText');
@@ -1725,8 +1684,6 @@
     const mTitle = $('modalSyncStatusTitle');
     const mTime = $('modalLastSyncTime');
 
-    if (btn) btn.className = `btn-sync-pill ${status}`;
-    if (dot) dot.className = `sync-dot ${status}`;
     if (miniDot) miniDot.className = `sync-dot-mini ${status}`;
     if (dDot) dDot.className = `sync-dot ${status}`;
     if (mDot) mDot.className = `status-indicator-dot ${status}`;
@@ -1735,17 +1692,14 @@
     const displayTime = timeStr || (savedTime ? new Date(savedTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Never');
 
     if (status === 'synced') {
-      if (label) label.textContent = 'Cloud Synced';
       if (dText) dText.textContent = 'Cloud Connected & Live Synced';
       if (mTitle) mTitle.textContent = 'Cloud Connected & Live Synced';
       if (dTime) dTime.textContent = displayTime;
       if (mTime) mTime.textContent = displayTime;
     } else if (status === 'syncing') {
-      if (label) label.textContent = 'Syncing...';
       if (dText) dText.textContent = 'Syncing with Cloud...';
       if (mTitle) mTitle.textContent = 'Syncing with Cloud...';
     } else {
-      if (label) label.textContent = 'Offline (Local)';
       if (dText) dText.textContent = 'Offline (Saved Locally)';
       if (mTitle) mTitle.textContent = 'Offline (Saved Locally)';
       if (dTime) dTime.textContent = displayTime;
@@ -2118,9 +2072,7 @@
     $('tabFinanceBtn').addEventListener('click', () => switchView('finance'));
 
     // PWA & Cloud Hub
-    if ($('installAppBtn')) $('installAppBtn').addEventListener('click', handleInstallApp);
     if ($('closeIosInstallBtn')) $('closeIosInstallBtn').addEventListener('click', () => $('installIosModal').classList.remove('open'));
-    if ($('cloudSyncBtn')) $('cloudSyncBtn').addEventListener('click', openCloudSyncModal);
     if ($('closeCloudSyncModal')) $('closeCloudSyncModal').addEventListener('click', closeCloudSyncModal);
 
     $('manualSyncNowBtn').addEventListener('click', () => {
@@ -2208,12 +2160,6 @@
     });
 
     $('addProductBtn').addEventListener('click', () => addRow(true));
-    if ($('downloadPdfBtn')) $('downloadPdfBtn').addEventListener('click', downloadPdf);
-    if ($('sharePdfBtn')) $('sharePdfBtn').addEventListener('click', sharePdf);
-    if ($('printBtn')) $('printBtn').addEventListener('click', printInvoice);
-    if ($('startNextBillBtn')) $('startNextBillBtn').addEventListener('click', startNextBill);
-    if ($('loadSampleBtn')) $('loadSampleBtn').addEventListener('click', loadSample);
-    if ($('resetBtn')) $('resetBtn').addEventListener('click', newInvoice);
 
     // Bill Saved Success Popup Modal
     if ($('closeSaveSuccessModal')) $('closeSaveSuccessModal').addEventListener('click', closeSaveSuccessModal);
