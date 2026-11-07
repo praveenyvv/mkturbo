@@ -196,6 +196,29 @@
     if (!silent) {
       toast(isEst ? '📋 Switched to Estimation Bill (No Bill No. & Blocked)' : '📄 Switched to Official Cash Bill');
     }
+    updateBillStatusBadge();
+  }
+
+  /* ── Dynamic Bill Status Badge (Auto / Edit / Estimate) ── */
+  function updateBillStatusBadge() {
+    const pill = $('billAutoStatusPill');
+    const text = $('billAutoStatusText');
+    const cancelBtn = $('cancelEditBillBtn');
+    if (!pill || !text) return;
+
+    if (state.billType === 'estimation') {
+      pill.className = 'bill-auto-status-pill estimate';
+      text.textContent = 'Estimation Quote (No Bill Number)';
+      if (cancelBtn) cancelBtn.style.display = 'none';
+    } else if (state.editingLedgerId) {
+      pill.className = 'bill-auto-status-pill editing';
+      text.textContent = `Editing Cash Bill #${state.invoiceNo || '---'}`;
+      if (cancelBtn) cancelBtn.style.display = 'inline-flex';
+    } else {
+      pill.className = 'bill-auto-status-pill';
+      text.textContent = '⚡ Auto-assigned on Save (Highest + 1)';
+      if (cancelBtn) cancelBtn.style.display = 'none';
+    }
   }
 
   /* ── Security PIN Lock (PIN 1981) ─────────── */
@@ -351,7 +374,30 @@
 
     const isEstimate = state.billType === 'estimation';
     const ledger = getLedger();
-    const invNo = isEstimate ? 'ESTIMATE' : String(state.invoiceNo || '---').trim();
+    let invNo = '';
+
+    if (isEstimate) {
+      invNo = 'ESTIMATE';
+      state.invoiceNo = 'ESTIMATE';
+    } else if (state.editingLedgerId) {
+      const existing = ledger.find(e => e.id === state.editingLedgerId);
+      invNo = existing && existing.invoiceNo ? existing.invoiceNo : (state.invoiceNo || '133');
+      state.invoiceNo = invNo;
+    } else {
+      // NEW CASH BILL:
+      // Dynamically calculate the highest invoice number from previous data AT THIS PARTICULAR TIME and add +1!
+      const highestNum = getHighestInvoiceNumber(ledger);
+      invNo = String(highestNum + 1);
+      state.invoiceNo = invNo;
+    }
+
+    // Set printable document preview values
+    if ($('pInvoiceNo')) {
+      $('pInvoiceNo').textContent = isEstimate ? 'ESTIMATE' : invNo;
+      $('pInvoiceNo').className = isEstimate ? 'inv-no-stamp inv-stamp-estimate' : 'inv-no-stamp';
+    }
+    if ($('invoiceNoInput')) $('invoiceNoInput').value = invNo;
+    sync();
 
     // Match by editingLedgerId FIRST, then by invoiceNo (if not estimate)
     let existingIndex = -1;
@@ -459,7 +505,7 @@
       const nextNo = state.invoiceNo;
       nextText.innerHTML = isEst
         ? 'Form is cleared and ready for next job.'
-        : `Form is cleared &amp; ready for next job: <strong>Bill #${nextNo}</strong>`;
+        : 'Form is cleared and ready for next job (Bill No. automatically assigned on save).';
     }
 
     modal.classList.add('open');
@@ -768,18 +814,23 @@
     $('summaryAmountWords').textContent = words;
   }
 
-  /* ── Compute Next Available Bill Number ────── */
-  function computeNextInvoiceNo(ledger) {
+  /* ── Compute Highest Previous Bill Number & Next ────── */
+  function getHighestInvoiceNumber(ledgerList) {
     let maxNo = 132;
-    (ledger || []).forEach(e => {
+    (ledgerList || []).forEach(e => {
       if (!e) return;
+      if (e.isEstimation || e.billType === 'estimation' || String(e.invoiceNo).toUpperCase() === 'ESTIMATE') return;
       const clean = String(e.invoiceNo || '').replace(/\D/g, '');
       const num = parseInt(clean, 10);
       if (!isNaN(num) && num > maxNo) {
         maxNo = num;
       }
     });
-    return String(maxNo + 1);
+    return maxNo;
+  }
+
+  function computeNextInvoiceNo(ledger) {
+    return String(getHighestInvoiceNumber(ledger) + 1);
   }
 
   /* ── Increment Bill Number ─────────────── */
@@ -1365,6 +1416,7 @@
 
     renderRows();
     sync();
+    updateBillStatusBadge();
 
     // In edit mode, allow user to make adjustments and click "Update Bill in Notebook"
     setSavedState(false);
@@ -1474,24 +1526,36 @@
     state.finance.pendingDeleteId = null;
   }
 
-  function executeDeleteEntry() {
+  async function executeDeleteEntry() {
     const targetId = state.finance.pendingDeleteId;
     if (!targetId) return;
 
+    // 1. Mark as permanently deleted in tombstones
     addDeletedId(targetId);
 
+    // 2. Remove immediately from local ledger
     const ledger = getLedger();
     const idx = ledger.findIndex(e => e.id === targetId);
+    let removed = null;
     if (idx >= 0) {
-      const removed = ledger.splice(idx, 1)[0];
+      removed = ledger.splice(idx, 1)[0];
       saveLedger(ledger);
       renderFinanceLedger();
-      pushSyncToCloud('delete_entry');
-      toast(`Deleted Bill #${removed.invoiceNo}`);
-    } else {
-      pushSyncToCloud('delete_entry');
     }
     closeDeleteConfirmModal();
+
+    // 3. Immediately direct push to Cloud and wait for response!
+    setSyncStatus('syncing');
+    try {
+      const ok = await directPushToCloud('delete_entry');
+      if (ok) {
+        toast(removed ? `🗑️ Bill #${removed.invoiceNo} deleted & cloud synced` : '🗑️ Record deleted & cloud synced');
+      } else {
+        toast('🗑️ Deleted locally (will sync when online)');
+      }
+    } catch (e) {
+      toast('🗑️ Deleted locally');
+    }
   }
 
   /* ── Export Finance Ledger to CSV / Excel ─── */
@@ -1647,8 +1711,9 @@
     $('customerNameInput').value = '';
     $('customerAddressInput').value = '';
     renderRows(); sync();
+    updateBillStatusBadge();
     setSavedState(false);
-    toast(`Ready - Cash Bill #${state.invoiceNo}`);
+    toast('Ready for new Cash Bill (Bill No. auto-assigned on Save)');
   }
 
   function startNextBill() {
@@ -1707,11 +1772,9 @@
     }
   }
 
-  async function pushSyncToCloud(reason = 'save') {
-    if (isSyncing) return;
-    isSyncing = true;
-    setSyncStatus('syncing');
+  let syncQueued = false;
 
+  async function directPushToCloud(reason = 'save') {
     const ledger = getLedger();
     const deletedIds = getDeletedIds();
     const payload = {
@@ -1728,8 +1791,6 @@
     saveVersionSnapshot(payload);
 
     let success = false;
-
-    // 1. Primary: Direct Push to Google Firebase Realtime Database
     try {
       const fbRes = await fetch(FIREBASE_ENDPOINT, {
         method: 'PUT',
@@ -1741,7 +1802,6 @@
       console.warn('Firebase cloud sync error:', err);
     }
 
-    // 2. Secondary: Push to local server if running
     try {
       await fetch('./api/sync', {
         method: 'POST',
@@ -1754,7 +1814,26 @@
     localStorage.setItem(STORAGE.LAST_SYNC, now.toISOString());
     setSyncStatus(success ? 'synced' : (navigator.onLine ? 'synced' : 'offline'), now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
     renderVersionHistory();
-    isSyncing = false;
+    return success;
+  }
+
+  async function pushSyncToCloud(reason = 'save') {
+    if (isSyncing) {
+      syncQueued = true;
+      return;
+    }
+    isSyncing = true;
+    setSyncStatus('syncing');
+
+    try {
+      await directPushToCloud(reason);
+    } finally {
+      isSyncing = false;
+      if (syncQueued) {
+        syncQueued = false;
+        pushSyncToCloud('queued_sync');
+      }
+    }
   }
 
   async function pullSyncFromCloud(silent = false) {
@@ -1851,6 +1930,7 @@
 
     // Filter out deleted items from remote
     const validRemote = remoteLedger.filter(item => item && item.id && !allDeletedIds.includes(item.id));
+    const cloudHadDeleted = remoteLedger.some(item => item && item.id && allDeletedIds.includes(item.id));
 
     // Remote is authoritative for the ledger list
     const map = new Map();
@@ -1889,6 +1969,11 @@
 
     const merged = Array.from(map.values()).sort((a, b) => new Date(b.date || b.createdAt) - new Date(a.date || a.createdAt));
     localStorage.setItem(STORAGE.FINANCE_LEDGER, JSON.stringify(merged));
+
+    // If cloud had phantom deleted items, immediately direct push to clean Firebase
+    if (cloudHadDeleted) {
+      directPushToCloud('purge_remote_deleted');
+    }
 
     // Next Invoice Number
     const nextNoFromLedger = computeNextInvoiceNo(merged);
@@ -2112,6 +2197,15 @@
     $('cancelDeleteBtn').addEventListener('click', closeDeleteConfirmModal);
     $('confirmDeleteBtn').addEventListener('click', executeDeleteEntry);
 
+    if ($('cancelEditBillBtn')) {
+      $('cancelEditBillBtn').addEventListener('click', () => {
+        state.editingLedgerId = null;
+        newInvoice(true);
+        updateBillStatusBadge();
+        toast('Cancelled editing. Ready for fresh Cash Bill.');
+      });
+    }
+
     // Save Bill Action
     $('saveBillBtn').addEventListener('click', handleSaveBill);
 
@@ -2319,6 +2413,7 @@
     renderRows();
     sync();
     setSavedState(false);
+    updateBillStatusBadge();
     initEvents();
     initPwa();
 
