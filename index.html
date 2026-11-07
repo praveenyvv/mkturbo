@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>M.K. Turbo - Cash Bill &amp; Finance Suite</title>
-  <link rel="stylesheet" href="style.css?v=4.0">
+  <link rel="stylesheet" href="style.css?v=4.1">
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#004b93">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -86,18 +86,12 @@
     </nav>
 
     <div class="header-right-wrap">
-      <button type="button" class="btn-sync-pill" id="cloudSyncBtn" title="Cloud Sync & Backup Hub">
-        <span class="sync-dot synced" id="syncStatusDot"></span>
-        <span class="sync-label" id="syncStatusText">Cloud Synced</span>
+      <button type="button" class="btn-menu-drawer" id="openMenuDrawerBtn" title="Open Workshop &amp; Cloud Menu">
+        <span class="sync-dot-mini synced" id="headerSyncDotMini"></span>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3">
+          <line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/>
+        </svg>
       </button>
-      <button type="button" class="btn-install-app" id="installAppBtn" title="Install App on Phone / Desktop">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-        <span>Install App</span>
-      </button>
-      <div class="bar-actions" id="invoiceBarActions">
-        <button type="button" class="btn-sample" id="loadSampleBtn">Sample</button>
-        <button type="button" class="btn-new" id="resetBtn">New</button>
-      </div>
     </div>
   </header>
 
@@ -491,7 +485,7 @@
           <div class="inv-meta-left">
             <table class="inv-kv-table">
               <tr>
-                <td class="kv-key">Bill No.</td>
+                <td class="kv-key" id="pInvoiceNoLbl">Bill No.</td>
                 <td class="kv-sep">:</td>
                 <td class="kv-val"><span id="pInvoiceNo" class="inv-no-stamp">133</span></td>
               </tr>
@@ -661,6 +655,67 @@
     </div>
   </div>
 
+  <!-- ===== SLIDE-OUT WORKSHOP & CLOUD DRAWER SIDEBAR ===== -->
+  <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+  <aside class="sidebar-drawer" id="appSidebarDrawer">
+    <div class="sidebar-header">
+      <div class="sidebar-brand">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#004b93" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        <span>Workshop &amp; Cloud Menu</span>
+      </div>
+      <button type="button" class="btn-close-sidebar" id="closeSidebarBtn" title="Close Menu">&times;</button>
+    </div>
+    
+    <div class="sidebar-body">
+      <!-- Cloud Sync Status Card -->
+      <div class="drawer-card">
+        <div class="drawer-card-header">
+          <span class="drawer-card-title">Realtime Cloud Sync</span>
+          <span class="sync-dot synced" id="drawerSyncDot"></span>
+        </div>
+        <p class="drawer-card-sub" id="drawerSyncStatusText">Cloud Connected &amp; Live Synced</p>
+        <p class="drawer-card-meta">Last sync: <span id="drawerLastSyncTime">Just now</span></p>
+        
+        <div class="drawer-actions-col mt-2">
+          <button type="button" class="btn-drawer-action primary" id="drawerSyncNowBtn">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+            <span>Sync Cloud Now</span>
+          </button>
+          <button type="button" class="btn-drawer-action" id="drawerOpenBackupModalBtn">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+            <span>Cloud &amp; Backup Settings</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- App Installation Card (PWA) -->
+      <div class="drawer-card">
+        <div class="drawer-card-header">
+          <span class="drawer-card-title">Installed App</span>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#004b93" stroke-width="2.2"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+        </div>
+        <p class="drawer-card-sub">Install on Home Screen for lightning-fast offline access</p>
+        <button type="button" class="btn-drawer-action mt-2" id="drawerInstallAppBtn">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          <span>Install App on Device</span>
+        </button>
+      </div>
+
+      <!-- Security & Lock Card -->
+      <div class="drawer-card">
+        <div class="drawer-card-header">
+          <span class="drawer-card-title">Security &amp; Privacy</span>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="2.2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        </div>
+        <p class="drawer-card-sub">Protected by Workshop Security PIN (1981)</p>
+        <button type="button" class="btn-drawer-action danger mt-2" id="drawerLockFinanceBtn">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          <span>Lock Finance Notebook</span>
+        </button>
+      </div>
+    </div>
+  </aside>
+
   <div class="toast" id="toast"></div>
   
   <!-- ==============================================================
@@ -766,6 +821,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=4.0"></script>
+  <script src="app.js?v=4.1"></script>
 </body>
 </html>

@@ -192,13 +192,15 @@
     }
 
     const docTitle = $('pDocTitle');
-    if (docTitle) docTitle.textContent = isEst ? 'ESTIMATION BILL' : 'CASH BILL';
+    if (docTitle) docTitle.textContent = isEst ? 'ESTIMATION' : 'CASH BILL';
 
     const pNo = $('pInvoiceNo');
+    const pLbl = $('pInvoiceNoLbl');
     const invInput = $('invoiceNoInput');
     const nextBtn = $('nextNoBtn');
 
     if (isEst) {
+      if (pLbl) pLbl.textContent = 'Estimate';
       if (pNo) {
         pNo.textContent = 'ESTIMATE';
         pNo.className = 'inv-no-stamp inv-stamp-estimate';
@@ -209,6 +211,7 @@
       }
       if (nextBtn) nextBtn.style.display = 'none';
     } else {
+      if (pLbl) pLbl.textContent = 'Bill No.';
       if (pNo) {
         pNo.textContent = state.invoiceNo || '---';
         pNo.className = 'inv-no-stamp';
@@ -630,8 +633,15 @@
     const filename = pdfFilename();
     $('dlBtnFilename').textContent = filename;
 
-    // Bill meta
-    $('pInvoiceNo').textContent = state.invoiceNo || '---';
+    const isEst = state.billType === 'estimation';
+
+    // Header & Meta
+    if ($('pDocTitle')) $('pDocTitle').textContent = isEst ? 'ESTIMATION' : 'CASH BILL';
+    if ($('pInvoiceNoLbl')) $('pInvoiceNoLbl').textContent = isEst ? 'Estimate' : 'Bill No.';
+    if ($('pInvoiceNo')) {
+      $('pInvoiceNo').textContent = isEst ? 'ESTIMATE' : (state.invoiceNo || '---');
+      $('pInvoiceNo').className = isEst ? 'inv-no-stamp inv-stamp-estimate' : 'inv-no-stamp';
+    }
     $('pInvoiceDate').textContent = toDDMMYYYY(state.invoiceDate);
 
     // Customer info
@@ -1054,11 +1064,11 @@
     }
 
     filtered.forEach(entry => {
+      const isEst = Boolean(entry.isEstimation || entry.billType === 'estimation');
       const card = document.createElement('div');
-      card.className = 'ledger-card';
+      card.className = 'ledger-card' + (isEst ? ' is-estimate' : '');
       card.dataset.id = entry.id;
 
-      const isEst = Boolean(entry.isEstimation || entry.billType === 'estimation');
       const billed = parseFloat(entry.billedAmount) || 0;
       const cost = parseFloat(entry.actualCost) || 0;
       const profit = billed - cost;
@@ -1085,17 +1095,28 @@
         ? `<span class="badge-status-blocked">🟡 Blocked</span>`
         : '';
 
-      const convertBtnHtml = isEst
-        ? `<button type="button" class="btn-convert-bill" title="Convert to Official Cash Bill and add money to book">
-             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-             <span>Convert to Cash Bill</span>
-           </button>`
+      const topConvertBanner = isEst
+        ? `<div class="ledger-convert-banner">
+             <button type="button" class="btn-convert-bill-top" title="1-Click: Convert to Official Cash Bill">
+               <div class="convert-btn-content">
+                 <span class="convert-icon-badge">⚡</span>
+                 <div class="convert-btn-texts">
+                   <span class="convert-title">Convert to Official Cash Bill</span>
+                   <span class="convert-sub">Assigns next Bill # &bull; Unblocks ${formatINR(billed)} into sales</span>
+                 </div>
+               </div>
+               <span class="convert-arrow">&rarr;</span>
+             </button>
+           </div>`
         : '';
 
       const profitLbl = isEst ? 'Projected Profit' : 'Your Profit';
       const profitSuffix = isEst ? ' (Blocked)' : '';
 
       card.innerHTML = `
+        <!-- TOP Action: Convert Estimate to Cash Bill -->
+        ${topConvertBanner}
+
         <div class="ledger-header">
           <div class="ledger-meta">
             ${invBadge}
@@ -1103,16 +1124,22 @@
             <span class="ledger-customer">${esc(entry.customerName)}</span>
             ${statusBadge}
           </div>
-          <!-- Action Buttons: Edit, Share, Delete -->
+          <!-- Action Buttons: Edit, Download, Share, Delete -->
           <div class="ledger-actions">
             <button type="button" class="btn-card-action btn-card-edit" title="Edit ${isEst ? 'Estimate' : 'Cash Bill #' + esc(entry.invoiceNo)}">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
               </svg>
             </button>
-            <button type="button" class="btn-card-action btn-card-share" title="Download / Share PDF">
+            <button type="button" class="btn-card-action btn-card-download" title="Download PDF">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+              </svg>
+            </button>
+            <button type="button" class="btn-card-action btn-card-share" title="Share PDF via WhatsApp / Apps">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+                <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
               </svg>
             </button>
             <button type="button" class="btn-card-action btn-card-del" title="Delete record">
@@ -1145,8 +1172,6 @@
           </div>
         </div>
 
-        ${convertBtnHtml}
-
         <div class="ledger-notes-row">
           <input type="text" class="inp notes-input" placeholder="Cost breakdown notes (e.g. Kit ₹3000, Lathe ₹500)" value="${esc(entry.notes || '')}">
         </div>`;
@@ -1155,9 +1180,10 @@
       const profitEl = card.querySelector('.calc-val-profit');
       const notesInput = card.querySelector('.notes-input');
       const editBtn = card.querySelector('.btn-card-edit');
+      const downloadBtn = card.querySelector('.btn-card-download');
       const shareBtn = card.querySelector('.btn-card-share');
       const delBtn = card.querySelector('.btn-card-del');
-      const convBtn = card.querySelector('.btn-convert-bill');
+      const convBtn = card.querySelector('.btn-convert-bill-top');
 
       let costDebounceTimer = null;
       costInput.addEventListener('input', e => {
@@ -1207,9 +1233,17 @@
         loadBillForEditing(entry);
       });
 
-      shareBtn.addEventListener('click', () => {
-        downloadBillFromLedger(entry);
-      });
+      if (downloadBtn) {
+        downloadBtn.addEventListener('click', () => {
+          downloadBillFromLedger(entry);
+        });
+      }
+
+      if (shareBtn) {
+        shareBtn.addEventListener('click', () => {
+          shareBillFromLedger(entry);
+        });
+      }
 
       delBtn.addEventListener('click', () => {
         openDeleteConfirmModal(entry);
@@ -1340,6 +1374,52 @@
       console.error(err);
       toast('Print dialog opened');
       window.print();
+    }
+  }
+
+  /* ── Direct PDF Share from Ledger ─────────── */
+  async function shareBillFromLedger(entry) {
+    loadBillForEditing(entry);
+
+    const isEst = Boolean(entry.isEstimation || entry.billType === 'estimation');
+    const filename = pdfFilename(entry.invoiceNo);
+    toast(`Preparing ${isEst ? 'Estimate' : 'Bill'} for sharing...`, 1600);
+
+    const sheet = $('invoiceSheet');
+    const opt = {
+      margin: 0,
+      filename,
+      image: { type: 'jpeg', quality: 0.98 },
+      html2canvas: { scale: 2, useCORS: true, letterRendering: true, scrollX: 0, scrollY: 0 },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    };
+
+    try {
+      if (typeof html2pdf !== 'undefined') {
+        const pdfBlob = await html2pdf().set(opt).from(sheet).output('blob');
+        const pdfFile = new File([pdfBlob], filename, { type: 'application/pdf' });
+
+        if (navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
+          await navigator.share({
+            files: [pdfFile],
+            title: isEst ? `M.K. Turbo Estimation - ${entry.customerName || 'Quote'}` : `M.K. Turbo Cash Bill #${entry.invoiceNo}`,
+            text: isEst
+              ? `M.K. Turbo Estimation Quote for ${entry.customerName || 'Customer'}`
+              : `M.K. Turbo Cash Bill #${entry.invoiceNo} for ${entry.customerName || 'Customer'}`
+          });
+          toast('Shared successfully!');
+        } else {
+          await html2pdf().set(opt).from(sheet).save();
+          toast(`Downloaded ${filename} for sharing!`);
+        }
+      } else {
+        window.print();
+      }
+    } catch (err) {
+      if (err.name !== 'AbortError') {
+        console.error(err);
+        await downloadBillFromLedger(entry);
+      }
     }
   }
 
@@ -1561,12 +1641,18 @@
     const btn = $('cloudSyncBtn');
     const dot = $('syncStatusDot');
     const label = $('syncStatusText');
+    const miniDot = $('headerSyncDotMini');
+    const dDot = $('drawerSyncDot');
+    const dText = $('drawerSyncStatusText');
+    const dTime = $('drawerLastSyncTime');
     const mDot = $('modalSyncDot');
     const mTitle = $('modalSyncStatusTitle');
     const mTime = $('modalLastSyncTime');
 
     if (btn) btn.className = `btn-sync-pill ${status}`;
     if (dot) dot.className = `sync-dot ${status}`;
+    if (miniDot) miniDot.className = `sync-dot-mini ${status}`;
+    if (dDot) dDot.className = `sync-dot ${status}`;
     if (mDot) mDot.className = `status-indicator-dot ${status}`;
 
     const savedTime = localStorage.getItem(STORAGE.LAST_SYNC);
@@ -1574,14 +1660,19 @@
 
     if (status === 'synced') {
       if (label) label.textContent = 'Cloud Synced';
+      if (dText) dText.textContent = 'Cloud Connected & Live Synced';
       if (mTitle) mTitle.textContent = 'Cloud Connected & Live Synced';
+      if (dTime) dTime.textContent = displayTime;
       if (mTime) mTime.textContent = displayTime;
     } else if (status === 'syncing') {
       if (label) label.textContent = 'Syncing...';
+      if (dText) dText.textContent = 'Syncing with Cloud...';
       if (mTitle) mTitle.textContent = 'Syncing with Cloud...';
     } else {
       if (label) label.textContent = 'Offline (Local)';
+      if (dText) dText.textContent = 'Offline (Saved Locally)';
       if (mTitle) mTitle.textContent = 'Offline (Saved Locally)';
+      if (dTime) dTime.textContent = displayTime;
       if (mTime) mTime.textContent = displayTime;
     }
   }
@@ -2041,8 +2132,55 @@
     $('sharePdfBtn').addEventListener('click', sharePdf);
     $('printBtn').addEventListener('click', printInvoice);
     $('startNextBillBtn').addEventListener('click', startNextBill);
-    $('loadSampleBtn').addEventListener('click', loadSample);
-    $('resetBtn').addEventListener('click', newInvoice);
+    if ($('loadSampleBtn')) $('loadSampleBtn').addEventListener('click', loadSample);
+    if ($('resetBtn')) $('resetBtn').addEventListener('click', newInvoice);
+
+    // Slide-out Drawer Sidebar
+    const drawer = $('appSidebarDrawer');
+    const backdrop = $('sidebarBackdrop');
+
+    const openDrawer = () => {
+      if (drawer) drawer.classList.add('open');
+      if (backdrop) backdrop.classList.add('open');
+    };
+
+    const closeDrawer = () => {
+      if (drawer) drawer.classList.remove('open');
+      if (backdrop) backdrop.classList.remove('open');
+    };
+
+    if ($('openMenuDrawerBtn')) $('openMenuDrawerBtn').addEventListener('click', openDrawer);
+    if ($('closeSidebarBtn')) $('closeSidebarBtn').addEventListener('click', closeDrawer);
+    if (backdrop) backdrop.addEventListener('click', closeDrawer);
+
+    if ($('drawerSyncNowBtn')) {
+      $('drawerSyncNowBtn').addEventListener('click', () => {
+        toast('Syncing with Cloud...');
+        pushSyncToCloud('drawer_manual');
+        pullSyncFromCloud();
+      });
+    }
+
+    if ($('drawerOpenBackupModalBtn')) {
+      $('drawerOpenBackupModalBtn').addEventListener('click', () => {
+        closeDrawer();
+        openCloudSyncModal();
+      });
+    }
+
+    if ($('drawerInstallAppBtn')) {
+      $('drawerInstallAppBtn').addEventListener('click', () => {
+        closeDrawer();
+        triggerPwaInstall();
+      });
+    }
+
+    if ($('drawerLockFinanceBtn')) {
+      $('drawerLockFinanceBtn').addEventListener('click', () => {
+        closeDrawer();
+        lockFinanceNotebook();
+      });
+    }
 
     // Finance Filters
     $('financeSearchInput').addEventListener('input', e => {
