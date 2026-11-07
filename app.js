@@ -291,7 +291,7 @@
     $('tabInvoiceBtn').classList.toggle('active', isInvoice);
     $('tabFinanceBtn').classList.toggle('active', !isInvoice);
 
-    $('invoiceBarActions').style.display = isInvoice ? 'flex' : 'none';
+    if ($('invoiceBarActions')) $('invoiceBarActions').style.display = isInvoice ? 'flex' : 'none';
 
     if (!isInvoice) {
       renderFinanceLedger();
@@ -2002,6 +2002,8 @@
       deferredInstallPrompt = e;
       const btn = $('installAppBtn');
       if (btn) btn.style.display = 'inline-flex';
+      const dBtn = $('drawerInstallAppBtn');
+      if (dBtn) dBtn.style.display = 'flex';
     });
 
     window.addEventListener('appinstalled', () => {
@@ -2009,6 +2011,8 @@
       toast('M.K. Turbo App installed successfully!');
       const btn = $('installAppBtn');
       if (btn) btn.innerHTML = '<span>✓ Installed</span>';
+      const dBtn = $('drawerInstallAppBtn');
+      if (dBtn) dBtn.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><polyline points="20 6 9 17 4 12"/></svg><span>✓ App Installed</span>';
     });
   }
 
@@ -2038,10 +2042,10 @@
     $('tabFinanceBtn').addEventListener('click', () => switchView('finance'));
 
     // PWA & Cloud Hub
-    $('installAppBtn').addEventListener('click', handleInstallApp);
-    $('closeIosInstallBtn').addEventListener('click', () => $('installIosModal').classList.remove('open'));
-    $('cloudSyncBtn').addEventListener('click', openCloudSyncModal);
-    $('closeCloudSyncModal').addEventListener('click', closeCloudSyncModal);
+    if ($('installAppBtn')) $('installAppBtn').addEventListener('click', handleInstallApp);
+    if ($('closeIosInstallBtn')) $('closeIosInstallBtn').addEventListener('click', () => $('installIosModal').classList.remove('open'));
+    if ($('cloudSyncBtn')) $('cloudSyncBtn').addEventListener('click', openCloudSyncModal);
+    if ($('closeCloudSyncModal')) $('closeCloudSyncModal').addEventListener('click', closeCloudSyncModal);
 
     $('manualSyncNowBtn').addEventListener('click', () => {
       toast('Syncing with Cloud...');
@@ -2171,7 +2175,7 @@
     if ($('drawerInstallAppBtn')) {
       $('drawerInstallAppBtn').addEventListener('click', () => {
         closeDrawer();
-        triggerPwaInstall();
+        handleInstallApp();
       });
     }
 
