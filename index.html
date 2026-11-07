@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>M.K. Turbo - Cash Bill &amp; Finance Suite</title>
-  <link rel="stylesheet" href="style.css?v=4.6">
+  <link rel="stylesheet" href="style.css?v=4.7">
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#004b93">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -469,7 +469,7 @@
         </div>
         <div class="field-group mt-2">
           <label class="field-lbl">What was done (Work / Parts)</label>
-          <input type="text" id="mWorkDoneInput" class="inp" placeholder="e.g. Repair Kit R/P, Core Assy">
+          <textarea id="mWorkDoneInput" class="inp inp-textarea" rows="2" placeholder="e.g. Repair Kit R/P, Core Assy &amp; Remachining"></textarea>
         </div>
         <div class="two-col mt-2">
           <div class="field-group">
@@ -639,20 +639,20 @@
             <div class="inv-words-val" id="pAmountWords">Zero Rupees Only</div>
           </div>
           <div class="inv-total-col">
-            <div class="inv-breakdown-rows" id="pBreakdownRows" style="display: none;">
-              <div class="inv-sub-line">
-                <span class="inv-sub-lbl">Subtotal:</span>
-                <span class="inv-sub-val" id="pSubtotalAmount">&#8377; 0.00</span>
-              </div>
-              <div class="inv-disc-line">
-                <span class="inv-disc-lbl">Total Discount:</span>
-                <span class="inv-disc-val" id="pDiscountTotal">-&#8377; 0.00</span>
-              </div>
-            </div>
-            <div class="inv-final-total-line">
-              <span class="inv-total-lbl">Total amount:</span>
-              <span class="inv-total-num" id="pTotalAmount">&#8377; 0.00</span>
-            </div>
+            <table class="inv-calc-summary-table">
+              <tr id="pSubtotalRow" style="display: none;">
+                <td class="inv-calc-sub-lbl">Subtotal:</td>
+                <td class="inv-calc-sub-val" id="pSubtotalAmount">&#8377; 0.00</td>
+              </tr>
+              <tr id="pDiscountRow" style="display: none;">
+                <td class="inv-calc-disc-lbl">Total Discount:</td>
+                <td class="inv-calc-disc-val" id="pDiscountTotal">-&#8377; 0.00</td>
+              </tr>
+              <tr class="inv-calc-final-row">
+                <td class="inv-calc-final-lbl">Total amount:</td>
+                <td class="inv-calc-final-val" id="pTotalAmount">&#8377; 0.00</td>
+              </tr>
+            </table>
           </div>
         </div>
         <!-- ── ROW 6.5: Important Precautions Before Fitting ── -->
@@ -845,6 +845,6 @@
       <button type="button" class="btn-dl" id="closeIosInstallBtn">Got It</button>
     </div>
   </div>
-  <script src="app.js?v=4.6"></script>
+  <script src="app.js?v=4.7"></script>
 </body>
 </html>

@@ -169,7 +169,7 @@
     if (isEst) {
       if (pLbl) pLbl.textContent = 'Estimate';
       if (pNo) {
-        pNo.textContent = 'ESTIMATE';
+        pNo.textContent = '---';
         pNo.className = 'inv-no-stamp inv-stamp-estimate';
       }
       if (invInput) {
@@ -333,7 +333,8 @@
     if (item.serialNo) metaParts.push(`S/N ${item.serialNo}`);
     const metaStr = metaParts.length ? `(${metaParts.join(', ')})` : '';
 
-    const parts = [item.turboName, metaStr, item.workDone].filter(Boolean);
+    const cleanWork = (item.workDone || '').replace(/\r?\n/g, ' / ').trim();
+    const parts = [item.turboName, metaStr, cleanWork].filter(Boolean);
     return parts.join(' - ') || 'Turbo Job';
   }
 
@@ -606,11 +607,11 @@
           </div>
         </div>
 
-        <!-- Row 3: What we have done -->
+        <!-- Row 3: What we have done (Multi-line Address-style Box) -->
         <div class="prod-inputs-grid mt-1">
           <div class="field-item flex-grow">
             <label class="input-tag">What we have done (Work / Parts)</label>
-            <input type="text" class="inp prod-work-done" placeholder="e.g. Repair Kit R/P, Core Assy &amp; Remachining" value="${esc(item.workDone)}">
+            <textarea class="inp inp-textarea prod-work-done" rows="2" placeholder="e.g. Repair Kit R/P, Core Assy &amp; Remachining">${esc(item.workDone || '')}</textarea>
           </div>
         </div>
 
@@ -719,7 +720,7 @@
     if ($('pDocTitle')) $('pDocTitle').textContent = isEst ? 'ESTIMATION' : 'CASH BILL';
     if ($('pInvoiceNoLbl')) $('pInvoiceNoLbl').textContent = isEst ? 'Estimate' : 'Bill No.';
     if ($('pInvoiceNo')) {
-      $('pInvoiceNo').textContent = isEst ? 'ESTIMATE' : (state.invoiceNo || '---');
+      $('pInvoiceNo').textContent = isEst ? '---' : (state.invoiceNo || '---');
       $('pInvoiceNo').className = isEst ? 'inv-no-stamp inv-stamp-estimate' : 'inv-no-stamp';
     }
     $('pInvoiceDate').textContent = toDDMMYYYY(state.invoiceDate);
@@ -765,7 +766,7 @@
         }
 
         if (item.workDone) {
-          nameHtml += `<div class="inv-turbo-work">${esc(item.workDone)}</div>`;
+          nameHtml += `<div class="inv-turbo-work">${esc(item.workDone).replace(/\n/g, '<br>')}</div>`;
         }
 
         if (discount > 0) {
@@ -803,15 +804,16 @@
     }
 
     // Breakdown subtotal and total discount display
-    const bdown = $('pBreakdownRows');
-    if (bdown) {
-      if (totalDiscount > 0) {
-        bdown.style.display = 'flex';
-        if ($('pSubtotalAmount')) $('pSubtotalAmount').textContent = formatINR(subtotal);
-        if ($('pDiscountTotal')) $('pDiscountTotal').textContent = '-' + formatINR(totalDiscount);
-      } else {
-        bdown.style.display = 'none';
-      }
+    const subRow = $('pSubtotalRow');
+    const discRow = $('pDiscountRow');
+    if (totalDiscount > 0) {
+      if (subRow) subRow.style.display = 'table-row';
+      if (discRow) discRow.style.display = 'table-row';
+      if ($('pSubtotalAmount')) $('pSubtotalAmount').textContent = formatINR(subtotal);
+      if ($('pDiscountTotal')) $('pDiscountTotal').textContent = '-' + formatINR(totalDiscount);
+    } else {
+      if (subRow) subRow.style.display = 'none';
+      if (discRow) discRow.style.display = 'none';
     }
 
     const words = toWords(total);
@@ -1441,7 +1443,7 @@
     if ($('pDocTitle')) $('pDocTitle').textContent = isEst ? 'ESTIMATION' : 'CASH BILL';
     if ($('pInvoiceNoLbl')) $('pInvoiceNoLbl').textContent = isEst ? 'Estimate' : 'Bill No.';
     if ($('pInvoiceNo')) {
-      $('pInvoiceNo').textContent = isEst ? 'ESTIMATE' : (entry.invoiceNo || '---');
+      $('pInvoiceNo').textContent = isEst ? '---' : (entry.invoiceNo || '---');
       $('pInvoiceNo').className = isEst ? 'inv-no-stamp inv-stamp-estimate' : 'inv-no-stamp';
     }
     if ($('pInvoiceDate')) $('pInvoiceDate').textContent = toDDMMYYYY(entry.date);
@@ -1491,7 +1493,7 @@
       }
 
       if (workDone) {
-        nameHtml += `<div class="inv-turbo-work">${esc(workDone)}</div>`;
+        nameHtml += `<div class="inv-turbo-work">${esc(workDone).replace(/\n/g, '<br>')}</div>`;
       }
 
       if (discount > 0) {
@@ -1527,15 +1529,16 @@
       tbody.appendChild(tr);
     }
 
-    const bdown = $('pBreakdownRows');
-    if (bdown) {
-      if (totalDiscount > 0) {
-        bdown.style.display = 'flex';
-        if ($('pSubtotalAmount')) $('pSubtotalAmount').textContent = formatINR(subtotal);
-        if ($('pDiscountTotal')) $('pDiscountTotal').textContent = '-' + formatINR(totalDiscount);
-      } else {
-        bdown.style.display = 'none';
-      }
+    const subRow = $('pSubtotalRow');
+    const discRow = $('pDiscountRow');
+    if (totalDiscount > 0) {
+      if (subRow) subRow.style.display = 'table-row';
+      if (discRow) discRow.style.display = 'table-row';
+      if ($('pSubtotalAmount')) $('pSubtotalAmount').textContent = formatINR(subtotal);
+      if ($('pDiscountTotal')) $('pDiscountTotal').textContent = '-' + formatINR(totalDiscount);
+    } else {
+      if (subRow) subRow.style.display = 'none';
+      if (discRow) discRow.style.display = 'none';
     }
 
     const words = toWords(total || entry.billedAmount || 0);
