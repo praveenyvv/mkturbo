@@ -1,0 +1,8 @@
+{
+  "name": "mkturbo-cashbill",
+  "version": "1.0.0",
+  "description": "M.K. Turbo Engineering & Servicing Centre Cash Bill & Finance Suite",
+  "scripts": {
+    "start": "python server.py"
+  }
+}

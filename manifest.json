@@ -1,0 +1,25 @@
+{
+  "name": "M.K. Turbo - Workshop & Finance",
+  "short_name": "MK Turbo",
+  "description": "M.K. Turbo Engineering & Servicing Centre Cash Bill Generator and Personal Finance Book",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#004b93",
+  "theme_color": "#004b93",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

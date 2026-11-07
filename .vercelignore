@@ -1,0 +1,7 @@
+*.py
+__pycache__
+backups
+*.bat
+README.md
+assets.json
+*.log
