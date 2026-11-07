@@ -1240,12 +1240,11 @@
       if (res.ok) {
         const remote = await res.json();
         if (remote && remote.ledger && Array.isArray(remote.ledger)) {
-          // Check if remote has newer data or different records
           const localLedger = getLedger();
           const localStr = JSON.stringify(localLedger);
           const remoteStr = JSON.stringify(remote.ledger);
 
-          if (localStr !== remoteStr || remote.updatedAt !== lastSyncedTimestamp) {
+          if (localStr !== remoteStr || remote.updatedAt !== lastSyncedTimestamp || localLedger.length === 0) {
             mergeRemoteData(remote);
             if (!silent) toast('☁️ Cloud Synced — Latest records loaded!', 1800);
           }
@@ -1254,6 +1253,54 @@
       }
     } catch (err) {
       // Offline fallback
+    }
+  }
+
+  /* ── Server-Sent Realtime Cloud Stream Listener ─ */
+  let cloudEventSource = null;
+
+  function startRealtimeCloudListener() {
+    if (typeof EventSource === 'undefined') return;
+
+    if (cloudEventSource) {
+      try { cloudEventSource.close(); } catch (e) {}
+      cloudEventSource = null;
+    }
+
+    try {
+      cloudEventSource = new EventSource(FIREBASE_ENDPOINT);
+
+      cloudEventSource.addEventListener('put', e => {
+        try {
+          const parsed = JSON.parse(e.data);
+          if (parsed && parsed.data) {
+            const data = parsed.data;
+            if (data && data.ledger && Array.isArray(data.ledger)) {
+              mergeRemoteData(data);
+              setSyncStatus('synced');
+            } else if (parsed.path === '/' && data && Array.isArray(data.ledger)) {
+              mergeRemoteData(data);
+              setSyncStatus('synced');
+            }
+          }
+        } catch (err) {
+          console.warn('Realtime sync parse error:', err);
+        }
+      });
+
+      cloudEventSource.addEventListener('patch', e => {
+        pullSyncFromCloud(true);
+      });
+
+      cloudEventSource.onerror = () => {
+        if (cloudEventSource) {
+          try { cloudEventSource.close(); } catch (e) {}
+          cloudEventSource = null;
+        }
+        setTimeout(startRealtimeCloudListener, 8000);
+      };
+    } catch (e) {
+      console.warn('Realtime listener init error:', e);
     }
   }
 
