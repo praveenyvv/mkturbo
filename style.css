@@ -2410,23 +2410,15 @@ body {
 
   .app-bar {
 
-    flex-direction: column;
-
-    gap: 8px;
-
-    padding: 8px 12px;
-
-  }
-
-  .app-bar-top {
-
-    width: 100%;
-
-    display: flex;
+    flex-direction: row;
 
     align-items: center;
 
     justify-content: space-between;
+
+    gap: 10px;
+
+    padding: 8px 12px;
 
   }
 
@@ -5533,26 +5525,143 @@ body {
 }
 
 
-.app-bar-top {
+
+
+
+/* ── Persistent Sticky Status Bar in App Views ── */
+:root {
+  --header-h: 54px;
+}
+
+.app-bar {
+  min-height: var(--header-h);
+}
+
+.app-view-subbar {
+  position: -webkit-sticky;
+  position: sticky;
+  top: var(--header-h);
+  z-index: 45;
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--border);
+  box-shadow: 0 3px 10px rgba(0, 75, 147, 0.06);
+  padding: 8px 14px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  width: 100%;
+  gap: 10px;
+  margin-bottom: 14px;
+  border-radius: 0 0 12px 12px;
 }
 
-@media (min-width: 769px) {
-  .app-bar-top {
-    display: contents;
+.sticky-bill-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  background: #f0fdf4;
+  border: 1px solid #86efac;
+  color: #166534;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 65%;
+}
+
+.sticky-bill-status-pill .sticky-pill-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #16a34a;
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.2);
+  flex-shrink: 0;
+  animation: pulse-dot 2s infinite;
+}
+
+/* Editing Saved Bill State */
+.sticky-bill-status-pill.editing {
+  background: #fffbeb;
+  border-color: #fde68a;
+  color: #b45309;
+}
+
+.sticky-bill-status-pill.editing .sticky-pill-dot {
+  background: #f59e0b;
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.25);
+}
+
+/* Estimation Mode State */
+.sticky-bill-status-pill.estimate {
+  background: #f5f3ff;
+  border-color: #ddd6fe;
+  color: #6d28d9;
+}
+
+.sticky-bill-status-pill.estimate .sticky-pill-dot {
+  background: #8b5cf6;
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.25);
+}
+
+/* Finance Notebook mode */
+.sticky-bill-status-pill.finance-mode {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+  color: #1d4ed8;
+}
+
+.sticky-bill-status-pill.finance-mode .sticky-pill-dot {
+  background: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
+}
+
+.btn-cancel-edit-sticky {
+  background: #fee2e2;
+  border: 1px solid #fca5a5;
+  color: #b91c1c;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 999px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.btn-cancel-edit-sticky:hover {
+  background: #fecaca;
+  color: #991b1b;
+}
+
+@keyframes pulse-dot {
+  0% { transform: scale(0.95); opacity: 0.8; }
+  50% { transform: scale(1.15); opacity: 1; }
+  100% { transform: scale(0.95); opacity: 0.8; }
+}
+
+@media (max-width: 768px) {
+  :root {
+    --header-h: 50px;
   }
-  .brand {
-    order: 1;
+  .app-view-subbar {
+    padding: 6px 10px;
+    margin-bottom: 10px;
   }
-  .app-switcher-tabs {
-    order: 2;
+  .sticky-bill-status-pill {
+    font-size: 0.74rem;
+    padding: 4px 9px;
+    max-width: 60%;
   }
-  .header-right-wrap {
-    order: 3;
-    display: flex;
-    align-items: center;
+  .btn-back-hub {
+    padding: 5px 8px;
+    font-size: 0.75rem;
   }
 }

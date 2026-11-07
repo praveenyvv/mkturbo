@@ -205,20 +205,37 @@
     const pill = $('billAutoStatusPill');
     const text = $('billAutoStatusText');
     const cancelBtn = $('cancelEditBillBtn');
-    if (!pill || !text) return;
+
+    // Persistent sticky indicator bar elements
+    const stickyPill = $('stickyBillStatusPill');
+    const stickyText = $('stickyBillStatusText');
+    const stickyCancelBtn = $('stickyCancelEditBtn');
 
     if (state.billType === 'estimation') {
-      pill.className = 'bill-auto-status-pill estimate';
-      text.textContent = 'Estimation Quote (No Bill Number)';
+      if (pill) pill.className = 'bill-auto-status-pill estimate';
+      if (text) text.textContent = 'Estimation Quote (No Bill Number)';
       if (cancelBtn) cancelBtn.style.display = 'none';
+
+      if (stickyPill) stickyPill.className = 'sticky-bill-status-pill estimate';
+      if (stickyText) stickyText.innerHTML = '<strong>ESTIMATION</strong> &bull; Quote Mode (No Bill #)';
+      if (stickyCancelBtn) stickyCancelBtn.style.display = 'none';
     } else if (state.editingLedgerId) {
-      pill.className = 'bill-auto-status-pill editing';
-      text.textContent = `Editing Cash Bill #${state.invoiceNo || '---'}`;
+      const billNumStr = state.invoiceNo ? `#${state.invoiceNo}` : 'Bill';
+      if (pill) pill.className = 'bill-auto-status-pill editing';
+      if (text) text.textContent = `Editing Cash Bill ${billNumStr}`;
       if (cancelBtn) cancelBtn.style.display = 'inline-flex';
+
+      if (stickyPill) stickyPill.className = 'sticky-bill-status-pill editing';
+      if (stickyText) stickyText.innerHTML = `<strong>EDITING BILL ${billNumStr}</strong> &bull; Modifying Saved Entry`;
+      if (stickyCancelBtn) stickyCancelBtn.style.display = 'inline-flex';
     } else {
-      pill.className = 'bill-auto-status-pill';
-      text.textContent = '⚡ Auto-assigned on Save (Highest + 1)';
+      if (pill) pill.className = 'bill-auto-status-pill';
+      if (text) text.textContent = '⚡ Auto-assigned on Save (Highest + 1)';
       if (cancelBtn) cancelBtn.style.display = 'none';
+
+      if (stickyPill) stickyPill.className = 'sticky-bill-status-pill new-bill';
+      if (stickyText) stickyText.innerHTML = '<strong>NEW CASH BILL</strong> &bull; Auto-assigned on Save';
+      if (stickyCancelBtn) stickyCancelBtn.style.display = 'none';
     }
   }
 
@@ -2343,6 +2360,9 @@
       if (e.key === 'Enter') { e.preventDefault(); verifyPin(); }
     });
     $('relockFinanceBtn').addEventListener('click', lockFinanceNotebook);
+    if ($('subbarRelockFinanceBtn')) {
+      $('subbarRelockFinanceBtn').addEventListener('click', lockFinanceNotebook);
+    }
 
     // Delete Confirm Modal
     $('cancelDeleteBtn').addEventListener('click', closeDeleteConfirmModal);
