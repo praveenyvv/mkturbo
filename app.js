@@ -1,14 +1,14 @@
 /**
  * M.K. TURBO WORKSHOP SUITE
  * 2-in-1: Cash Bill Generator + Personal Finance & Profit Book
- * Protected by PIN 1981
+ * Protected by Security PIN
  * Featuring Save Mechanism, Progressive Web App (PWA) & Multi-Device Cloud Sync
  */
 
 (function () {
   'use strict';
 
-  const PIN_CODE = '1981';
+  const PIN_CODE = '0009';
 
   const STORAGE = {
     NEXT_INV_NO: 'mkturbo_next_inv_no',
@@ -241,7 +241,7 @@
 
   /* ── Security PIN Lock (PIN 1981) ─────────── */
   function isFinanceUnlocked() {
-    return sessionStorage.getItem(STORAGE.PIN_UNLOCKED) === '1981';
+    return sessionStorage.getItem(STORAGE.PIN_UNLOCKED) === PIN_CODE;
   }
 
   function promptFinancePin() {
@@ -265,7 +265,7 @@
     const input = $('pinInput');
     const entered = input.value.trim();
     if (entered === PIN_CODE) {
-      sessionStorage.setItem(STORAGE.PIN_UNLOCKED, '1981');
+      sessionStorage.setItem(STORAGE.PIN_UNLOCKED, PIN_CODE);
       closePinModal();
       switchView('finance');
       toast('🔓 Finance Notebook Unlocked');
