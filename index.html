@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>M.K. Turbo - Cash Bill &amp; Finance Suite</title>
-  <link rel="stylesheet" href="style.css?v=5.1">
+  <link rel="stylesheet" href="style.css?v=5.2">
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#004b93">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -90,10 +90,10 @@
             <div class="app-card-icon-wrap icon-wrap-invoice">🧾</div>
             <span class="app-card-tag tag-blue">Cash Bill &amp; Estimates</span>
           </div>
-          <div class="app-card-title">Bill Generator</div>
-          <p class="app-card-desc">Create serial cash bills and quotation estimates with dynamic number assignment, precautions &amp; direct WhatsApp share.</p>
+          <div class="app-card-title">Bill Generator &amp; Saved Bills</div>
+          <p class="app-card-desc">Create cash bills &amp; estimates, view and manage saved bills, download PDF &amp; share directly on WhatsApp.</p>
           <button type="button" class="app-card-btn btn-open-invoice">
-            <span>Open Bill Generator</span>
+            <span>Open Billing &amp; Bills</span>
             <span>&rarr;</span>
           </button>
         </div>
@@ -130,7 +130,33 @@
       </div>
       <button type="button" class="btn-cancel-edit-sticky" id="stickyCancelEditBtn" style="display: none;" title="Cancel editing and create new bill">✕ Cancel</button>
     </div>
-    <div class="entry-card">
+
+    <!-- Bill Generator Sub-Tabs: Create Bill vs Saved Bills -->
+    <div class="billing-mode-tabs-wrap">
+      <div class="billing-mode-tabs">
+        <button type="button" class="billing-mode-tab active" id="btnTabCreateBill">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+          </svg>
+          <span>Create / Edit Bill</span>
+        </button>
+        <button type="button" class="billing-mode-tab" id="btnTabSavedBills">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+            <line x1="16" y1="13" x2="8" y2="13"/>
+            <line x1="16" y1="17" x2="8" y2="17"/>
+          </svg>
+          <span>Saved Bills</span>
+          <span class="billing-tab-counter" id="savedBillsTabCount">0</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Container 1: Create / Edit Form -->
+    <div id="billingFormContainer">
+      <div class="entry-card">
       <!-- Document Type Selector: Cash Bill vs. Estimation Bill -->
       <div class="doc-type-selector-wrap mb-3">
         <label class="field-lbl">Document Type</label>
@@ -226,8 +252,29 @@
         </button>
       </div>
       <p class="note-text" id="footerNoteText">
-        Saving securely logs this bill into your <strong>Finance Notebook</strong> with actual profit tracking.
+        Saving securely records this bill into your <strong>Saved Bills</strong> list and updates the Finance Book.
       </p>
+    </div>
+    </div> <!-- /#billingFormContainer -->
+
+    <!-- Container 2: Clean Saved Bills List (No costs, No profits, Just bills & actions!) -->
+    <div class="saved-bills-container" id="savedBillsContainer" style="display: none;">
+      <div class="saved-bills-header-card">
+        <div class="saved-bills-search-wrap">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" id="savedBillsSearchInput" class="inp saved-bills-search-inp" placeholder="Search saved bills by #, customer, turbo...">
+        </div>
+        <div class="saved-bills-filters">
+          <select id="savedBillsFilterType" class="inp filter-select" style="max-width: 160px; font-size: 0.82rem;">
+            <option value="ALL">All Bills</option>
+            <option value="cash">Official Cash Bills</option>
+            <option value="estimation">Estimations Only</option>
+          </select>
+        </div>
+      </div>
+      <div class="saved-bills-list" id="savedBillsList">
+        <!-- Rendered by renderSavedBillsList() -->
+      </div>
     </div>
   </main>
   <!-- ==============================================================
@@ -834,6 +881,6 @@
       <button type="button" class="btn-dl" id="closeIosInstallBtn">Got It</button>
     </div>
   </div>
-  <script src="app.js?v=5.1"></script>
+  <script src="app.js?v=5.2"></script>
 </body>
 </html>

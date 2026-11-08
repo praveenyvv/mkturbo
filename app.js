@@ -312,6 +312,7 @@
 
     if (isFinance) {
       renderFinanceLedger();
+    renderSavedBillsList();
     }
   }
 
@@ -485,6 +486,8 @@
     }
 
     saveLedger(ledger);
+    if ($('savedBillsTabCount')) $('savedBillsTabCount').textContent = ledger.length;
+    renderSavedBillsList();
     if (!isEstimate) {
       const nextNo = computeNextInvoiceNo(ledger);
       localStorage.setItem(STORAGE.NEXT_INV_NO, nextNo);
@@ -1016,6 +1019,7 @@
 
     saveLedger(ledger);
     renderFinanceLedger();
+    renderSavedBillsList();
     pushSyncToCloud('convert_estimate');
     toast(`⚡ Converted to Cash Bill #${nextNo}! Money added to Finance Book.`);
   }
@@ -1064,6 +1068,190 @@
 
     if (currentMonthVal) monthSelect.value = currentMonthVal;
     if (currentYearVal) yearSelect.value = currentYearVal;
+  }
+
+  
+  /* ── Switch between Create Bill & Saved Bills Sub-tabs ── */
+  function switchBillingTab(tabName) {
+    const isCreate = tabName === 'create';
+    if ($('btnTabCreateBill')) $('btnTabCreateBill').classList.toggle('active', isCreate);
+    if ($('btnTabSavedBills')) $('btnTabSavedBills').classList.toggle('active', !isCreate);
+
+    if ($('billingFormContainer')) $('billingFormContainer').style.display = isCreate ? 'block' : 'none';
+    if ($('savedBillsContainer')) $('savedBillsContainer').style.display = !isCreate ? 'block' : 'none';
+
+    if (!isCreate) {
+      renderSavedBillsList();
+    }
+  }
+
+  /* ── Render Clean Saved Bills List (No costs, No profits, Just billing data!) ── */
+  function renderSavedBillsList() {
+    const container = $('savedBillsList');
+    if (!container) return;
+
+    const ledger = getLedger();
+    if ($('savedBillsTabCount')) $('savedBillsTabCount').textContent = ledger.length;
+
+    const filterType = $('savedBillsFilterType') ? $('savedBillsFilterType').value : 'ALL';
+    const query = ($('savedBillsSearchInput') ? $('savedBillsSearchInput').value : '').toLowerCase().trim();
+
+    const filtered = ledger.filter(entry => {
+      const isEst = Boolean(entry.isEstimation || entry.billType === 'estimation');
+      if (filterType === 'cash' && isEst) return false;
+      if (filterType === 'estimation' && !isEst) return false;
+
+      if (query) {
+        const inv = String(entry.invoiceNo || '').toLowerCase();
+        const cust = String(entry.customerName || '').toLowerCase();
+        const itemsStr = (entry.items || []).map(i => i.name || '').join(' ').toLowerCase();
+        const phone = String(entry.customerPhone || '').toLowerCase();
+        if (!inv.includes(query) && !cust.includes(query) && !itemsStr.includes(query) && !phone.includes(query)) {
+          return false;
+        }
+      }
+      return true;
+    });
+
+    container.innerHTML = '';
+
+    if (filtered.length === 0) {
+      container.innerHTML = `
+        <div class="empty-state" style="text-align:center; padding: 40px 16px; color: #94a3b8; background: #fff; border-radius: 12px; border: 1.5px dashed #cbd5e1;">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom:8px;"><circle cx="12" cy="10" r="8"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <p style="font-weight: 700; color: #475569; font-size: 0.95rem;">No saved bills found.</p>
+          <p style="font-size: 0.78rem; color: #64748b;">Save your first cash bill or quotation to view it here.</p>
+          <button type="button" class="btn-sub mt-3" id="btnEmptyCreateBill" style="margin: 10px auto 0; display: inline-flex;">+ Create New Bill</button>
+        </div>`;
+      if ($('btnEmptyCreateBill')) {
+        $('btnEmptyCreateBill').addEventListener('click', () => switchBillingTab('create'));
+      }
+      return;
+    }
+
+    filtered.forEach(entry => {
+      const isEst = Boolean(entry.isEstimation || entry.billType === 'estimation');
+      const card = document.createElement('div');
+      card.className = 'ledger-card saved-bill-card' + (isEst ? ' is-estimate' : '');
+      card.dataset.id = entry.id;
+
+      const billed = parseFloat(entry.billedAmount) || 0;
+
+      let turbosHtml = '';
+      if (entry.items && entry.items.length > 0) {
+        turbosHtml = entry.items.map(it => `
+          <div class="ledger-turbo-item">
+            <span class="turbo-item-name">&bull; ${esc(it.name)}</span>
+            <span class="turbo-item-cost">${it.cost ? formatINR(it.cost) : ''}</span>
+          </div>`).join('');
+      } else {
+        turbosHtml = `<div class="ledger-turbo-item"><span class="turbo-item-name">&bull; Turbo Servicing / Parts</span></div>`;
+      }
+
+      const invBadge = isEst
+        ? `<span class="ledger-inv-no ledger-badge-estimate">📋 ESTIMATE</span>`
+        : `<span class="ledger-inv-no">#${esc(entry.invoiceNo)}</span>`;
+
+      const statusBadge = isEst
+        ? `<span class="badge-status-blocked">🟡 Quotation</span>`
+        : `<span class="badge-status-confirmed">🟢 Cash Bill</span>`;
+
+      const phoneBadge = entry.customerPhone
+        ? `<a href="tel:${esc(entry.customerPhone)}" class="ledger-phone-badge" title="Call Customer">📞 ${esc(entry.customerPhone)}</a>`
+        : '';
+
+      const topConvertBanner = isEst
+        ? `<div class="ledger-convert-banner">
+             <button type="button" class="btn-convert-bill-top" title="1-Click: Convert to Official Cash Bill">
+               <div class="convert-btn-content">
+                 <span class="convert-icon-badge">⚡</span>
+                 <div class="convert-btn-texts">
+                   <span class="convert-title">Convert to Official Cash Bill</span>
+                   <span class="convert-sub">Assigns next Bill # &bull; Total: ${formatINR(billed)}</span>
+                 </div>
+               </div>
+               <span class="convert-arrow">&rarr;</span>
+             </button>
+           </div>`
+        : '';
+
+      card.innerHTML = `
+        ${topConvertBanner}
+        <div class="ledger-header">
+          <div class="ledger-meta">
+            ${invBadge}
+            <span class="ledger-date">${toDDMMYYYY(entry.date)}</span>
+            <span class="ledger-customer">${esc(entry.customerName)}</span>
+            ${phoneBadge}
+            ${statusBadge}
+          </div>
+          <div class="ledger-actions">
+            <button type="button" class="btn-card-action btn-card-edit" title="Edit ${isEst ? 'Estimate' : 'Cash Bill #' + esc(entry.invoiceNo)}">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+              </svg>
+            </button>
+            <button type="button" class="btn-card-action btn-card-download" title="Download PDF">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+              </svg>
+            </button>
+            <button type="button" class="btn-card-action btn-card-share" title="Share PDF via WhatsApp / Apps">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+                <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+              </svg>
+            </button>
+            <button type="button" class="btn-card-action btn-card-del" title="Delete record">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="ledger-turbos">
+          ${turbosHtml}
+        </div>
+
+        <!-- Clean Billed Total Row (NO actual cost, NO profit, NO commission!) -->
+        <div class="saved-bill-summary-row">
+          <span class="saved-bill-summary-lbl">Billed Total:</span>
+          <span class="saved-bill-summary-val">${formatINR(billed)}</span>
+        </div>
+      `;
+
+      // Attach Action Listeners
+      const editBtn = card.querySelector('.btn-card-edit');
+      const downloadBtn = card.querySelector('.btn-card-download');
+      const shareBtn = card.querySelector('.btn-card-share');
+      const delBtn = card.querySelector('.btn-card-del');
+      const convBtn = card.querySelector('.btn-convert-bill-top');
+
+      if (editBtn) {
+        editBtn.addEventListener('click', () => {
+          loadBillForEditing(entry);
+          switchBillingTab('create');
+        });
+      }
+      if (downloadBtn) {
+        downloadBtn.addEventListener('click', () => downloadBillFromLedger(entry));
+      }
+      if (shareBtn) {
+        shareBtn.addEventListener('click', () => shareBillFromLedger(entry));
+      }
+      if (delBtn) {
+        delBtn.addEventListener('click', () => openDeleteConfirmModal(entry));
+      }
+      if (convBtn) {
+        convBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          convertEstimateToCashBill(entry.id);
+        });
+      }
+
+      container.appendChild(card);
+    });
   }
 
   function renderFinanceLedger() {
@@ -1329,6 +1517,7 @@
         if (state.finance.needsRefreshOnBlur) {
           state.finance.needsRefreshOnBlur = false;
           renderFinanceLedger();
+    renderSavedBillsList();
         }
       });
 
@@ -1347,6 +1536,7 @@
         if (state.finance.needsRefreshOnBlur) {
           state.finance.needsRefreshOnBlur = false;
           renderFinanceLedger();
+    renderSavedBillsList();
         }
       });
 
@@ -1697,6 +1887,7 @@
       removed = ledger.splice(idx, 1)[0];
       saveLedger(ledger);
       renderFinanceLedger();
+    renderSavedBillsList();
     }
     closeDeleteConfirmModal();
 
@@ -1823,6 +2014,7 @@
 
     closeManualModal();
     renderFinanceLedger();
+    renderSavedBillsList();
     toast('Saved to Finance Notebook!');
   }
 
@@ -2157,6 +2349,7 @@
       state.finance.needsRefreshOnBlur = true;
     } else {
       renderFinanceLedger();
+    renderSavedBillsList();
     }
   }
 
@@ -2373,12 +2566,25 @@
         state.editingLedgerId = null;
         newInvoice(true);
         updateBillStatusBadge();
+        switchBillingTab('create');
         toast('Cancelled editing. Ready for fresh Cash Bill.');
       });
     }
 
     // Save Bill Action
     $('saveBillBtn').addEventListener('click', handleSaveBill);
+
+    // Billing Navigation Sub-Tabs (Create Bill vs Saved Bills)
+    if ($('btnTabCreateBill')) $('btnTabCreateBill').addEventListener('click', () => switchBillingTab('create'));
+    if ($('btnTabSavedBills')) $('btnTabSavedBills').addEventListener('click', () => switchBillingTab('saved'));
+
+    // Saved Bills Search & Filters
+    if ($('savedBillsSearchInput')) {
+      $('savedBillsSearchInput').addEventListener('input', () => renderSavedBillsList());
+    }
+    if ($('savedBillsFilterType')) {
+      $('savedBillsFilterType').addEventListener('change', () => renderSavedBillsList());
+    }
 
     // Document Type Selector (Cash Bill vs Estimation Bill)
     if ($('btnTypeCashBill')) $('btnTypeCashBill').addEventListener('click', () => setBillType('cash'));
@@ -2512,6 +2718,7 @@
     $('financeSearchInput').addEventListener('input', e => {
       state.finance.searchQuery = e.target.value;
       renderFinanceLedger();
+    renderSavedBillsList();
     });
 
     if ($('financeStatusFilter')) $('financeStatusFilter').addEventListener('change', () => renderFinanceLedger());
@@ -2530,6 +2737,7 @@
     window.addEventListener('storage', e => {
       if (e.key === STORAGE.FINANCE_LEDGER) {
         renderFinanceLedger();
+    renderSavedBillsList();
       }
       if (e.key === STORAGE.NEXT_INV_NO) {
         state.invoiceNo = e.newValue || '133';
